@@ -1,3 +1,3 @@
-from .GPTNeoXScaledRotaryEmbedding import *
-from .LlamaScaledRotaryEmbedding import *
+from .GPTNeoXDynamicScaledRotaryEmbedding import *
+from .LlamaDynamicScaledRotaryEmbedding import *
 from .patch import *
