@@ -81,6 +81,7 @@ def main():
         config.use_xpos = model_args.use_xpos
         config.max_position_embeddings = model_args.max_position_embeddings
         config.transformer_engine = model_args.fp8
+        config.ntk_alpha = model_args.ntk_alpha
         config.position_interpolation_scale = model_args.position_interpolation_scale
 
         model = LlamaForCausalLM.from_pretrained(model_args.model_name_or_path, device_map={
@@ -121,7 +122,8 @@ def main():
     datasets = datasets.filter(lambda x: len(
         x["text"]) >= model_args.max_position_embeddings)
     datasets = datasets.map(
-        lambda examples: {"text": [tokenizer.bos_token + x for x in examples["text"]]},
+        lambda examples: {
+            "text": [tokenizer.bos_token + x for x in examples["text"]]},
         batched=True)
     tokenized_datasets = datasets.map(
         lambda examples: tokenizer(examples["text"]),
