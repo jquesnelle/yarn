@@ -175,7 +175,7 @@ def main(args):
         result = []
         for max_length in tokens:
             ppl = perplexity.compute(model=loaded, tokenizer=tokenizer, predictions=input_texts,
-                                     batch_size=1, max_length=max_length)["mean_perplexity"]
+                                     batch_size=args.batch_size, max_length=max_length)["mean_perplexity"]
             print(f"{model}: {max_length}={ppl}")
             result.append(ppl)
 
@@ -196,6 +196,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--dataset", type=str, default="tau/scrolls")
     parser.add_argument("-s", "--subset", type=str, default="gov_report")
     parser.add_argument("-f", "--feature", type=str, default="input")
+    parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--max-tokens", type=int, default=4000)
     parser.add_argument("--min-tokens", type=int, default=200)
     parser.add_argument("--tokens-step", type=int, default=200)
