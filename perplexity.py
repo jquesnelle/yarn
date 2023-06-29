@@ -39,7 +39,7 @@ class Perplexity(evaluate.Metric):
         # if batch_size > 1 (which generally leads to padding being required), and
         # if there is not an already assigned pad_token, assign an existing
         # special token to also be the padding token
-        if tokenizer.pad_token is None and batch_size > 1:
+        if tokenizer.pad_token is None:
             existing_special_tokens = list(
                 tokenizer.special_tokens_map_extended.values())
             # check that the model already has at least one special token defined
