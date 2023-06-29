@@ -62,7 +62,7 @@ class Perplexity(evaluate.Metric):
         encodings = tokenizer(
             predictions,
             add_special_tokens=False,
-            padding=batch_size > 1,
+            padding=True,
             truncation=True if max_tokenized_len else False,
             max_length=max_tokenized_len,
             return_tensors="pt",
