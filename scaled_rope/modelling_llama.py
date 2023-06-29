@@ -176,9 +176,11 @@ class LlamaXposRotaryEmbedding(torch.nn.Module):
         return q_embed, k_embed
     
 class LlamaScaledRotaryEmbedding(torch.nn.Module):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, position_interpolation_scale=1, device=None):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, position_interpolation_scale=1, ntk_alpha=None, device=None):
         super().__init__()
         self.position_interpolation_scale = position_interpolation_scale
+        if ntk_alpha:
+            base = base * ntk_alpha ** (dim / (dim-2))
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
         self.register_buffer("inv_freq", inv_freq)
 

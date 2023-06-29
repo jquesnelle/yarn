@@ -6,3 +6,4 @@ transformers>=4.28.1
 tqdm
 einops
 sentencepiece
+protobuf==3.19.6

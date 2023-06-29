@@ -46,6 +46,7 @@ class ModelArguments:
     position_interpolation_scale: Optional[float] = field(default=1)
     use_xpos: Optional[bool] = field(default=False)
     fp8: Optional[bool] = field(default=False)
+    ntk_alpha: Optional[float] = field(default=None)
 
 
 @dataclass
@@ -138,10 +139,6 @@ def main():
 
     train_dataset = lm_datasets["train"]
     eval_dataset = lm_datasets["validation"] if not data_args.streaming else None
-
-    it = iter(train_dataset)
-    next(it)
-    print(next(iter(it))["input_ids"])
 
     trainer = Trainer(
         model=model,

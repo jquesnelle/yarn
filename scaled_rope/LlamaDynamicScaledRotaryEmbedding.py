@@ -1,6 +1,6 @@
 import torch
 
-class LlamaRotaryEmbedding(torch.nn.Module):
+class LlamaDynamicScaledRotaryEmbedding(torch.nn.Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
         super().__init__()
         self.max_position_embeddings = max_position_embeddings
