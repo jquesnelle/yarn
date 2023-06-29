@@ -175,7 +175,7 @@ def main(args):
         result = []
         for max_length in tokens:
             ppl = perplexity.compute(model=loaded, tokenizer=tokenizer, predictions=input_texts,
-                                     batch_size=args.batch_size, max_length=max_length)["mean_perplexity"]
+                                     batch_size=args.batch_size, add_start_token=tokenizer.bos_token is not None, max_length=max_length)["mean_perplexity"]
             print(f"{model}: {max_length}={ppl}")
             result.append(ppl)
 
