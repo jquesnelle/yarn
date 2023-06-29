@@ -32,7 +32,7 @@ class ModelArguments:
         },
     )
 
-    max_positions: Optional[int] = field(
+    max_position_embeddings: Optional[int] = field(
         default=2048,
         metadata={
             "help": (
@@ -56,6 +56,8 @@ class DataTrainingArguments:
         default="togethercomputer/RedPajama-Data-1T-Sample", metadata={"help": "The name of the dataset to use (via the datasets library)."}
     )
 
+    streaming: Optional[bool] = field(default=False)
+
 
 def main():
     parser = HfArgumentParser(
@@ -63,21 +65,18 @@ def main():
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     last_checkpoint = get_last_checkpoint(training_args.output_dir)
     set_seed(training_args.seed)
+
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
     tokenizer.pad_token = tokenizer.eos_token
-    max_positions = model_args.max_positions
-    tokenizer.model_max_length = max_positions
+    tokenizer.model_max_length = model_args.max_position_embeddings
 
     if "llama" in model_args.model_name_or_path:
         config = LlamaConfig.from_pretrained(model_args.model_name_or_path)
-        if model_args.use_xpos:
-            config.use_xpos = model_args.use_xpos
-        if model_args.max_positions:
-            config.max_position_embeddings = model_args.max_positions
-        if model_args.fp8:
-            config.transformer_engine = model_args.fp8
-        if model_args.position_interpolation_scale:
-            config.position_interpolation_scale = model_args.position_interpolation_scale
+        config.use_xpos = model_args.use_xpos
+        config.max_position_embeddings = model_args.max_position_embeddings
+        config.transformer_engine = model_args.fp8
+        config.position_interpolation_scale = model_args.position_interpolation_scale
+
         model = LlamaForCausalLM.from_pretrained(model_args.model_name_or_path, device_map={
                                                  "": "cuda:0"}, torch_dtype=torch.bfloat16, config=config)
     else:
@@ -109,7 +108,8 @@ def main():
 
     datasets = load_dataset(data_args.dataset_name)
     # better heuristic? maybe 3xlength?
-    datasets = datasets.filter(lambda x: len(x["text"]) >= max_positions)
+    datasets = datasets.filter(lambda x: len(
+        x["text"]) >= model_args.max_position_embeddings)
     tokenized_datasets = datasets.map(
         lambda examples: tokenizer(examples["text"]),
         batched=True,
@@ -119,12 +119,13 @@ def main():
         batched=True,
     )
     lm_datasets = lm_datasets.filter(
-        lambda x: len(x["input_ids"]) >= max_positions)
+        lambda x: len(x["input_ids"]) >= model_args.max_position_embeddings)
 
-    lm_datasets = lm_datasets.train_test_split(test_size=0.1)
+    if not data_args.streaming:
+        lm_datasets = lm_datasets.train_test_split(test_size=0.1)
 
     train_dataset = lm_datasets["train"]
-    eval_dataset = lm_datasets["validation"]
+    eval_dataset = lm_datasets["validation"] if not data_args.streaming else None
 
     trainer = Trainer(
         model=model,
