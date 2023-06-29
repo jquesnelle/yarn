@@ -122,7 +122,7 @@ class Perplexity(evaluate.Metric):
 def main(args):
     models = [x[0] for x in args.model]
     tokenizer = AutoTokenizer.from_pretrained(
-        models[0], model_max_length=sys.maxsize)
+        models[0], model_max_length=sys.maxsize, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
 
     perplexity = Perplexity()
