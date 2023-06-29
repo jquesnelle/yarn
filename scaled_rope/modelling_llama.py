@@ -95,7 +95,7 @@ class LlamaRMSNorm(nn.Module):
 
         return (self.weight * hidden_states).to(input_dtype)
 
-class XposRotaryEmbedding(torch.nn.Module):
+class LlamaXposRotaryEmbedding(torch.nn.Module):
     def __init__(
         self,
         dim,
@@ -104,7 +104,6 @@ class XposRotaryEmbedding(torch.nn.Module):
         device=None,
         scale_base=2048,
         use_xpos=True,
-        position_interpolation_scale=1,
     ):
         super().__init__()
         self.max_seq_len_cached = max_position_embeddings
@@ -112,7 +111,6 @@ class XposRotaryEmbedding(torch.nn.Module):
 
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
         t = torch.arange(self.max_seq_len_cached, device=device).type_as(inv_freq)
-        t *= position_interpolation_scale
         freqs = torch.einsum("i , j -> i j", t, inv_freq)
         freqs = torch.cat((freqs, freqs), dim=-1)
 
@@ -142,7 +140,6 @@ class XposRotaryEmbedding(torch.nn.Module):
             t = torch.arange(self.max_seq_len_cached, device=x.device).type_as(
                 self.inv_freq
             )
-            t *= self.position_interpolation_scale
             freqs = torch.einsum("i , j -> i j", t, self.inv_freq)
             freqs = torch.cat((freqs, freqs), dim=-1).to(dtype=x.dtype)
 
@@ -163,20 +160,73 @@ class XposRotaryEmbedding(torch.nn.Module):
         return self.freqs_cached.to(dtype=x.dtype), self.scale_cached.to(dtype=x.dtype)
 
 
-def rotate_half(x):
-    x1, x2 = x.chunk(2, dim=-1)
-    return torch.cat((-x2, x1), dim=-1)
+    def rotate_half(x):
+        x1, x2 = x.chunk(2, dim=-1)
+        return torch.cat((-x2, x1), dim=-1)
 
 
-def apply_rotary_pos_emb(q, k, freqs, scale=1, position_ids=None):
-    freqs = freqs[position_ids, :]
-    if scale.shape[-1] != 1:
-        scale = scale[position_ids, :]
+    def apply_rotary_pos_emb(self, q, k, freqs, scale=1, position_ids=None):
+        freqs = freqs[position_ids, :]
+        if scale.shape[-1] != 1:
+            scale = scale[position_ids, :]
 
-    q_embed = (q * freqs.cos() * scale) + (rotate_half(q) * freqs.sin() * scale)
-    k_embed = (k * freqs.cos() * 1/scale) + (rotate_half(k) * freqs.sin() * 1/scale)
+        q_embed = (q * freqs.cos() * scale) + (LlamaXposRotaryEmbedding.rotate_half_xpos(q) * freqs.sin() * scale)
+        k_embed = (k * freqs.cos() * 1/scale) + (LlamaXposRotaryEmbedding.rotate_half_xpos(k) * freqs.sin() * 1/scale)
 
-    return q_embed, k_embed
+        return q_embed, k_embed
+    
+class LlamaScaledRotaryEmbedding(torch.nn.Module):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, position_interpolation_scale=1, device=None):
+        super().__init__()
+        self.position_interpolation_scale = position_interpolation_scale
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+        self.register_buffer("inv_freq", inv_freq)
+
+        # Build here to make `torch.jit.trace` work.
+        self.max_seq_len_cached = max_position_embeddings
+        t = torch.arange(self.max_seq_len_cached, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
+        t *= self.position_interpolation_scale
+        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        emb = torch.cat((freqs, freqs), dim=-1)
+        dtype = torch.get_default_dtype()
+        self.register_buffer("cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False)
+        self.register_buffer("sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False)
+
+    def forward(self, x, seq_len=None):
+        # x: [bs, num_attention_heads, seq_len, head_size]
+        # This `if` block is unlikely to be run after we build sin/cos in `__init__`. Keep the logic here just in case.
+        if seq_len > self.max_seq_len_cached:
+            self.max_seq_len_cached = seq_len
+            t = torch.arange(self.max_seq_len_cached, device=x.device, dtype=self.inv_freq.dtype)
+            t *= self.position_interpolation_scale
+            freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+            # Different from paper, but it uses a different permutation in order to obtain the same calculation
+            emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
+            self.register_buffer("cos_cached", emb.cos()[None, None, :, :].to(x.dtype), persistent=False)
+            self.register_buffer("sin_cached", emb.sin()[None, None, :, :].to(x.dtype), persistent=False)
+        return (
+            self.cos_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
+            self.sin_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
+        )
+
+
+    def rotate_half(x):
+        """Rotates half the hidden dims of the input."""
+        x1 = x[..., : x.shape[-1] // 2]
+        x2 = x[..., x.shape[-1] // 2 :]
+        return torch.cat((-x2, x1), dim=-1)
+
+
+    def apply_rotary_pos_emb(self, q, k, cos, sin, position_ids):
+        # The first two dimensions of cos and sin are always 1, so we can `squeeze` them.
+        cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
+        sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
+        cos = cos[position_ids].unsqueeze(1)  # [bs, 1, seq_len, dim]
+        sin = sin[position_ids].unsqueeze(1)  # [bs, 1, seq_len, dim]
+        q_embed = (q * cos) + (LlamaScaledRotaryEmbedding.rotate_half(q) * sin)
+        k_embed = (k * cos) + (LlamaScaledRotaryEmbedding.rotate_half(k) * sin)
+        return q_embed, k_embed
 
 class LlamaMLP(nn.Module):
     def __init__(
@@ -224,7 +274,9 @@ class LlamaAttention(nn.Module):
         self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
         self.v_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
         self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
-        self.rotary_emb = XposRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings, use_xpos=config.use_xpos, position_interpolation_scale=config.position_interpolation_scale)
+        self.rotary_emb = LlamaXposRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings) \
+            if config.use_xpos else \
+                LlamaScaledRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings, position_interpolation_scale=config.position_interpolation_scale)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -263,7 +315,7 @@ class LlamaAttention(nn.Module):
         (
             query_states,
             key_states,
-        ) = apply_rotary_pos_emb(
+        ) = self.rotary_emb.apply_rotary_pos_emb(
             query_states, key_states, cos, sin, position_ids
         )
         # [bsz, nh, t, hd]

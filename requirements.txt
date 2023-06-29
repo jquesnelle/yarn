@@ -4,3 +4,5 @@ evaluate
 torch>=2
 transformers>=4.28.1
 tqdm
+einops
+sentencepiece

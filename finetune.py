@@ -1,12 +1,14 @@
 import torch
 import evaluate
+import os
+import sys
 from datasets import load_dataset
 from transformers.trainer_utils import get_last_checkpoint
 from itertools import chain
 from typing import Optional
 from dataclasses import dataclass, field
 from transformers import (
-    AutoTokenizer,
+    LlamaTokenizerFast,
     HfArgumentParser,
     Trainer,
     TrainingArguments,
@@ -36,7 +38,7 @@ class ModelArguments:
         default=2048,
         metadata={
             "help": (
-                "The maximun sequence length of the model."
+                "The maximum sequence length of the model."
             )
         },
     )
@@ -56,6 +58,7 @@ class DataTrainingArguments:
         default="togethercomputer/RedPajama-Data-1T-Sample", metadata={"help": "The name of the dataset to use (via the datasets library)."}
     )
 
+    group_texts: Optional[bool] = field(default=True)
     streaming: Optional[bool] = field(default=False)
 
 
@@ -63,14 +66,16 @@ def main():
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    last_checkpoint = get_last_checkpoint(training_args.output_dir)
+    last_checkpoint = get_last_checkpoint(
+        training_args.output_dir) if os.path.exists(training_args.output_dir) else None
     set_seed(training_args.seed)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.model_max_length = model_args.max_position_embeddings
-
     if "llama" in model_args.model_name_or_path:
+        tokenizer = LlamaTokenizerFast.from_pretrained(
+            model_args.model_name_or_path, add_bos_token=False)
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.model_max_length = model_args.max_position_embeddings
+
         config = LlamaConfig.from_pretrained(model_args.model_name_or_path)
         config.use_xpos = model_args.use_xpos
         config.max_position_embeddings = model_args.max_position_embeddings
@@ -78,7 +83,7 @@ def main():
         config.position_interpolation_scale = model_args.position_interpolation_scale
 
         model = LlamaForCausalLM.from_pretrained(model_args.model_name_or_path, device_map={
-                                                 "": "cuda:0"}, torch_dtype=torch.bfloat16, config=config)
+                                                 "": f"cuda:{int(os.environ.get('LOCAL_RANK', '0'))}"}, torch_dtype=torch.bfloat16, config=config)
     else:
         raise NotImplementedError
 
@@ -86,7 +91,7 @@ def main():
     for p in model.parameters():
         p = p.contiguous()
 
-    block_size = tokenizer.model_max_length
+    block_size = model_args.max_position_embeddings
 
     def group_texts(examples):
         # Concatenate all texts.
@@ -106,16 +111,23 @@ def main():
         result["labels"] = result["input_ids"].copy()
         return result
 
-    datasets = load_dataset(data_args.dataset_name)
+    def copy_input_ids(examples):
+        examples["labels"] = examples["input_ids"].copy()
+
+    datasets = load_dataset(data_args.dataset_name,
+                            streaming=data_args.streaming)
     # better heuristic? maybe 3xlength?
     datasets = datasets.filter(lambda x: len(
         x["text"]) >= model_args.max_position_embeddings)
+    datasets = datasets.map(
+        lambda examples: {"text": [tokenizer.bos_token + x for x in examples["text"]]},
+        batched=True)
     tokenized_datasets = datasets.map(
         lambda examples: tokenizer(examples["text"]),
-        batched=True,
+        batched=True
     )
     lm_datasets = tokenized_datasets.map(
-        group_texts,
+        group_texts if data_args.group_texts else copy_input_ids,
         batched=True,
     )
     lm_datasets = lm_datasets.filter(
@@ -126,6 +138,10 @@ def main():
 
     train_dataset = lm_datasets["train"]
     eval_dataset = lm_datasets["validation"] if not data_args.streaming else None
+
+    it = iter(train_dataset)
+    next(it)
+    print(next(iter(it))["input_ids"])
 
     trainer = Trainer(
         model=model,
