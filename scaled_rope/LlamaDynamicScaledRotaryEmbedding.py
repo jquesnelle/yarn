@@ -1,3 +1,4 @@
+import math
 import torch
 
 class LlamaDynamicScaledRotaryEmbedding(torch.nn.Module):
@@ -26,7 +27,7 @@ class LlamaDynamicScaledRotaryEmbedding(torch.nn.Module):
         if seq_len > self.max_seq_len_cached:
             self.max_seq_len_cached = seq_len
             if self.ntk:
-                base = self.base * (seq_len / self.max_position_embeddings) ** (self.dim / (self.dim-2))
+                base = self.base * ((self.ntk * seq_len / self.max_position_embeddings) - (self.ntk - 1)) ** (self.dim / (self.dim-2))
                 inv_freq = 1.0 / (base ** (torch.arange(0, self.dim, 2).float().to(x.device) / self.dim))
                 self.register_buffer("inv_freq", inv_freq)
             t = torch.arange(self.max_seq_len_cached, device=x.device, dtype=self.inv_freq.dtype)

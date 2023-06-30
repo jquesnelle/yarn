@@ -203,7 +203,7 @@ if __name__ == "__main__":
     parser.add_argument("--split", type=str, default="test")
     parser.add_argument("--samples", type=int, default=50)
     parser.add_argument("--dynamic-linear", action="store_true")
-    parser.add_argument("--dynamic-ntk", action="store_true")
+    parser.add_argument("--dynamic-ntk", type=int)
     parser.add_argument("--ntk", type=int)
     parser.add_argument("--output-file", type=str)
     main(parser.parse_args())
