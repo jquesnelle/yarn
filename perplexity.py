@@ -150,12 +150,12 @@ def main(args):
 
         if "GPTNeoXForCausalLM" in loaded.config.architectures:
             patch_gptneox_for_longer_sequences(loaded, args.length)
-        if args.dynamic:
+        if args.dynamic_linear or args.dynamic_ntk:
             suffix = "dynamic"
             if "GPTNeoXForCausalLM" in loaded.config.architectures:
                 patch_gptneox_for_scaled_rotary_embeddings(loaded)
             elif "LlamaForCausalLM" in loaded.config.architectures:
-                patch_llama_for_scaled_rotary_embeddings(loaded)
+                patch_llama_for_scaled_rotary_embeddings(loaded, ntk=args.dynamic_ntk)
             else:
                 raise RuntimeError(
                     f"Unknown architectures {loaded.config.architectures} to patch {suffix}")
@@ -202,7 +202,8 @@ if __name__ == "__main__":
     parser.add_argument("--tokens-step", type=int, default=200)
     parser.add_argument("--split", type=str, default="test")
     parser.add_argument("--samples", type=int, default=50)
-    parser.add_argument("--dynamic", action="store_true")
+    parser.add_argument("--dynamic-linear", action="store_true")
+    parser.add_argument("--dynamic-ntk", action="store_true")
     parser.add_argument("--ntk", type=int)
     parser.add_argument("--output-file", type=str)
     main(parser.parse_args())

@@ -1,11 +1,11 @@
 import torch
 
 
-def patch_llama_for_scaled_rotary_embeddings(model):
+def patch_llama_for_scaled_rotary_embeddings(model, ntk):
     from .LlamaDynamicScaledRotaryEmbedding import LlamaDynamicScaledRotaryEmbedding
     for each in model.model.layers:
         each.self_attn.rotary_emb = LlamaDynamicScaledRotaryEmbedding(
-            each.self_attn.head_dim, device=each.self_attn.rotary_emb.inv_freq.device)
+            each.self_attn.head_dim, device=each.self_attn.rotary_emb.inv_freq.device, ntk=ntk)
 
 
 def patch_llama_for_ntk_scaled_rotary_embeddings(model, alpha):

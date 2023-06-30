@@ -1,8 +1,11 @@
 import torch
 
 class LlamaDynamicScaledRotaryEmbedding(torch.nn.Module):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, ntk=False, device=None):
         super().__init__()
+        self.ntk = ntk
+        self.base = base
+        self.dim = dim
         self.max_position_embeddings = max_position_embeddings
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
         self.register_buffer("inv_freq", inv_freq)
@@ -22,8 +25,13 @@ class LlamaDynamicScaledRotaryEmbedding(torch.nn.Module):
         # This `if` block is unlikely to be run after we build sin/cos in `__init__`. Keep the logic here just in case.
         if seq_len > self.max_seq_len_cached:
             self.max_seq_len_cached = seq_len
+            if self.ntk:
+                base = self.base * (seq_len / self.max_position_embeddings) ** (self.dim / (self.dim-2))
+                inv_freq = 1.0 / (base ** (torch.arange(0, self.dim, 2).float().to(x.device) / self.dim))
+                self.register_buffer("inv_freq", inv_freq)
             t = torch.arange(self.max_seq_len_cached, device=x.device, dtype=self.inv_freq.dtype)
-            t *= self.max_position_embeddings / seq_len
+            if not self.ntk:
+                t *= self.max_position_embeddings / seq_len
             freqs = torch.einsum("i,j->ij", t, self.inv_freq)
             # Different from paper, but it uses a different permutation in order to obtain the same calculation
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
