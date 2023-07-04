@@ -6,11 +6,9 @@ import sys
 import torch
 import warnings
 from torch.nn import CrossEntropyLoss
-from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, pipeline
-from tqdm import tqdm, trange
-from tqdm.contrib import tenumerate
-from scaled_rope.patch import *
-
+from transformers import AutoTokenizer
+from tqdm import tqdm
+from model_loader import *
 
 class Perplexity(evaluate.Metric):
     def _info(self):
@@ -136,41 +134,11 @@ def main(args):
     for model in tqdm(models, desc="Model", leave=False):
         torch.cuda.empty_cache()
 
-        config = AutoConfig.from_pretrained(model, trust_remote_code=True)
-        if "MPTForCausalLM" in config.architectures:
-            config.max_seq_len = max(args.length, config.max_seq_len)
-
-        loaded = AutoModelForCausalLM.from_pretrained(
-            model,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
-            trust_remote_code=True,
-            config=config
-        )
-
-        if "GPTNeoXForCausalLM" in loaded.config.architectures:
-            patch_gptneox_for_longer_sequences(loaded, args.length)
-        if args.dynamic_linear or args.dynamic_ntk:
-            suffix = "dynamic"
-            if "GPTNeoXForCausalLM" in loaded.config.architectures:
-                patch_gptneox_for_scaled_rotary_embeddings(loaded)
-            elif "LlamaForCausalLM" in loaded.config.architectures:
-                patch_llama_for_scaled_rotary_embeddings(loaded, ntk=args.dynamic_ntk)
-            else:
-                raise RuntimeError(
-                    f"Unknown architectures {loaded.config.architectures} to patch {suffix}")
-        elif args.ntk:
-            suffix = "ntk"
-            if "GPTNeoXForCausalLM" in loaded.config.architectures:
-                patch_gptneox_for_ntk_scaled_rotary_embeddings(
-                    loaded, args.ntk)
-            elif "LlamaForCausalLM" in loaded.config.architectures:
-                patch_llama_for_ntk_scaled_rotary_embeddings(loaded, args.ntk)
-            else:
-                raise RuntimeError(
-                    f"Unknown architectures {loaded.config.architectures} to patch {suffix}")
-        else:
-            suffix = None
+        
+        loaded = load_model(model, args.load_in_8bit, args.load_in_4bit, args.max_tokens)
+        apply_patches(loaded, args.max_tokens, args.dynamic_ntk,
+                        args.dynamic_linear, args.ntk)
+        
 
         result = []
         for max_length in tokens:
@@ -179,7 +147,7 @@ def main(args):
             print(f"{model}: {max_length}={ppl}")
             result.append(ppl)
 
-        result.insert(0, f"{model}{'-' + suffix if suffix else ''}")
+        result.insert(0, model)
         results.append(result)
 
     if args.output_file:
@@ -206,4 +174,6 @@ if __name__ == "__main__":
     parser.add_argument("--dynamic-ntk", type=float)
     parser.add_argument("--ntk", type=float)
     parser.add_argument("--output-file", type=str)
+    parser.add_argument("--load_in_8bit", action="store_true")
+    parser.add_argument("--load_in_4bit", action="store_true")
     main(parser.parse_args())

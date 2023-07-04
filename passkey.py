@@ -4,10 +4,10 @@ import re
 import sys
 import torch
 import warnings
-from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, pipeline
+from transformers import AutoTokenizer, pipeline
 from tqdm import tqdm, trange
 from tqdm.contrib import tenumerate
-from scaled_rope.patch import *
+from model_loader import *
 
 # from https://github.com/epfml/landmark-attention/blob/main/llama/run_test.py
 
@@ -76,42 +76,9 @@ def main(args):
     for model in tqdm(models, desc="Model", leave=False):
         torch.cuda.empty_cache()
 
-        config = AutoConfig.from_pretrained(model, trust_remote_code=True)
-        config.use_cache = False if args.no_cache else None
-        if "MPTForCausalLM" in config.architectures:
-            config.max_seq_len = max(args.max_tokens + args.tokens_step, config.max_seq_len)
-
-        loaded = AutoModelForCausalLM.from_pretrained(
-            model,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
-            trust_remote_code=True,
-            config=config
-        )
-
-        if "GPTNeoXForCausalLM" in loaded.config.architectures:
-            patch_gptneox_for_longer_sequences(
-                loaded, args.max_tokens + args.tokens_step)
-        if args.dynamic:
-            suffix = "dynamic"
-            if "GPTNeoXForCausalLM" in loaded.config.architectures:
-                patch_gptneox_for_scaled_rotary_embeddings(loaded)
-            elif "LlamaForCausalLM" in loaded.config.architectures:
-                patch_llama_for_scaled_rotary_embeddings(loaded)
-            else:
-                raise RuntimeError(
-                    f"Unknown architectures {loaded.config.architectures} to patch {suffix}")
-        elif args.ntk:
-            suffix = "ntk"
-            if "GPTNeoXForCausalLM" in loaded.config.architectures:
-                patch_gptneox_for_ntk_scaled_rotary_embeddings(loaded, args.ntk)
-            elif "LlamaForCausalLM" in loaded.config.architectures:
-                patch_llama_for_ntk_scaled_rotary_embeddings(loaded, args.ntk)
-            else:
-                raise RuntimeError(
-                    f"Unknown architectures {loaded.config.architectures} to patch {suffix}")
-        else:
-            suffix = None
+        loaded = load_model(model, args.load_in_8bit, args.load_in_4bit, args.max_tokens + args.tokens_step)
+        apply_patches(loaded, args.max_tokens + args.tokens_step, args.dynamic_ntk,
+                    args.dynamic_linear, args.ntk)
 
         pipe = pipeline("text-generation", model=loaded,
                         tokenizer=tokenizer, pad_token_id=tokenizer.eos_token_id)
@@ -127,7 +94,7 @@ def main(args):
             result[i] /= args.iterations
             print(f"{model}: {tokens[i]}={int(result[i]*100)}%")
 
-        result.insert(0, f"{model}{'-' + suffix if suffix else ''}")
+        result.insert(0, model)
         results.append(result)
 
     if args.output_file:
@@ -147,8 +114,10 @@ if __name__ == "__main__":
     parser.add_argument("--tokens-step", type=int, default=200)
     parser.add_argument("--length-step", type=int, default=25)
     parser.add_argument("--iterations", type=int, default=50)
-    parser.add_argument("--dynamic", action="store_true")
-    parser.add_argument("--ntk", type=int)
-    parser.add_argument("--no-cache", action="store_true")
     parser.add_argument("--output-file", type=str)
+    parser.add_argument("--dynamic-linear", action="store_true")
+    parser.add_argument("--dynamic-ntk", type=float)
+    parser.add_argument("--ntk", type=float)
+    parser.add_argument("--load_in_8bit", action="store_true")
+    parser.add_argument("--load_in_4bit", action="store_true")
     main(parser.parse_args())

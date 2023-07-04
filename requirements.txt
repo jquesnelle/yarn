@@ -7,3 +7,4 @@ tqdm
 einops
 sentencepiece
 protobuf==3.19.6
+scikit-learn
