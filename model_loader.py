@@ -32,20 +32,24 @@ def load_model(model, load_in_8bit, load_in_4bit, length):
 
     return loaded
 
-def apply_patches(loaded, length, dynamic_ntk, dynamic_linear, ntk):
+def apply_patches(loaded, length, dynamic_ntk, dynamic_linear, ntk, linear):
     if "GPTNeoXForCausalLM" in loaded.config.architectures:
         patch_gptneox_for_longer_sequences(loaded, length)
-    if dynamic_linear or dynamic_ntk:
-        suffix = "dynamic"
+    if dynamic_linear:
         if "GPTNeoXForCausalLM" in loaded.config.architectures:
             patch_gptneox_for_scaled_rotary_embeddings(loaded)
         elif "LlamaForCausalLM" in loaded.config.architectures:
-            patch_llama_for_scaled_rotary_embeddings(loaded, ntk=dynamic_ntk)
+            patch_llama_for_dynamic_scaled_rotary_embeddings(loaded)
         else:
             raise RuntimeError(
-                f"Unknown architectures {loaded.config.architectures} to patch {suffix}")
+                f"Unsupported architecture {loaded.config.architectures} for dyanmic linear")
+    elif dynamic_ntk:
+        if "LlamaForCausalLM" in loaded.config.architectures:
+            patch_llama_for_dynamic_scaled_rotary_embeddings(loaded, ntk=dynamic_ntk)
+        else:
+            raise RuntimeError(
+                f"Unsupported architecture {loaded.config.architectures} for dyanmic ntk")
     elif ntk:
-        suffix = "ntk"
         if "GPTNeoXForCausalLM" in loaded.config.architectures:
             patch_gptneox_for_ntk_scaled_rotary_embeddings(
                 loaded, ntk)
@@ -53,4 +57,10 @@ def apply_patches(loaded, length, dynamic_ntk, dynamic_linear, ntk):
             patch_llama_for_ntk_scaled_rotary_embeddings(loaded, ntk)
         else:
             raise RuntimeError(
-                f"Unknown architectures {loaded.config.architectures} to patch {suffix}")
+                f"Unsupported architecture {loaded.config.architectures} for ntk")
+    elif linear:
+        if "LlamaForCausalLM" in loaded.config.architectures:
+            patch_llama_for_linear_scaled_rotary_embeddings(loaded, scale=linear)
+        else:
+            raise RuntimeError(
+                f"Unsupported architecture {loaded.config.architectures} for linear")

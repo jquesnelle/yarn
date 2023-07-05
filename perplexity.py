@@ -10,6 +10,7 @@ from transformers import AutoTokenizer
 from tqdm import tqdm
 from model_loader import *
 
+
 class Perplexity(evaluate.Metric):
     def _info(self):
         return evaluate.MetricInfo(
@@ -134,11 +135,10 @@ def main(args):
     for model in tqdm(models, desc="Model", leave=False):
         torch.cuda.empty_cache()
 
-        
-        loaded = load_model(model, args.load_in_8bit, args.load_in_4bit, args.max_tokens)
+        loaded = load_model(model, args.load_in_8bit,
+                            args.load_in_4bit, args.max_tokens)
         apply_patches(loaded, args.max_tokens, args.dynamic_ntk,
-                        args.dynamic_linear, args.ntk)
-        
+                      args.dynamic_linear, args.ntk, args.linear)
 
         result = []
         for max_length in tokens:
@@ -173,6 +173,7 @@ if __name__ == "__main__":
     parser.add_argument("--dynamic-linear", action="store_true")
     parser.add_argument("--dynamic-ntk", type=float)
     parser.add_argument("--ntk", type=float)
+    parser.add_argument("--linear", type=float)
     parser.add_argument("--output-file", type=str)
     parser.add_argument("--load_in_8bit", action="store_true")
     parser.add_argument("--load_in_4bit", action="store_true")

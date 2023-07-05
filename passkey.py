@@ -78,7 +78,7 @@ def main(args):
 
         loaded = load_model(model, args.load_in_8bit, args.load_in_4bit, args.max_tokens + args.tokens_step)
         apply_patches(loaded, args.max_tokens + args.tokens_step, args.dynamic_ntk,
-                    args.dynamic_linear, args.ntk)
+                    args.dynamic_linear, args.ntk, args.linear)
 
         pipe = pipeline("text-generation", model=loaded,
                         tokenizer=tokenizer, pad_token_id=tokenizer.eos_token_id)
@@ -118,6 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("--dynamic-linear", action="store_true")
     parser.add_argument("--dynamic-ntk", type=float)
     parser.add_argument("--ntk", type=float)
+    parser.add_argument("--linear", type=float)
     parser.add_argument("--load_in_8bit", action="store_true")
     parser.add_argument("--load_in_4bit", action="store_true")
     main(parser.parse_args())
