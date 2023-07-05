@@ -16,7 +16,7 @@ def get_prompt(sample):
     return f"{instruction}\n\nAnswer: ("
 
 def main(args):
-    tokenizer = AutoTokenizer.from_pretrained(args.model, model_max_length=sys.maxsize)
+    tokenizer = AutoTokenizer.from_pretrained(args.model, model_max_length=sys.maxsize, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
 
     dataset = load_dataset("emozilla/quality", split=args.split)

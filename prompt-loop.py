@@ -8,7 +8,7 @@ from model_loader import load_model, apply_patches
 
 def main(args):
     tokenizer = AutoTokenizer.from_pretrained(
-        args.model, model_max_length=sys.maxsize)
+        args.model, model_max_length=sys.maxsize, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
 
     model = load_model(args.model, args.load_in_8bit,

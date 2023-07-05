@@ -52,7 +52,7 @@ def test_model(pipe, prompt_text, pass_key):
 def main(args):
     models = [x[0] for x in args.model]
     tokenizer = AutoTokenizer.from_pretrained(
-        models[0], model_max_length=sys.maxsize, padding_side="right")
+        models[0], model_max_length=sys.maxsize, padding_side="right", trust_remote_code=True)
 
     if args.fixed_length:
         lengths = [args.fixed_length]
