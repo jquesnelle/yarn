@@ -125,7 +125,7 @@ def main(args):
     tokenizer.pad_token = tokenizer.eos_token
 
     perplexity = Perplexity()
-    input_texts = datasets.load_dataset(args.dataset, args.subset, split=args.split)[
+    input_texts = datasets.load_dataset(args.dataset, name=args.subset if len(args.subset) > 0 else None, split=args.split if len(args.split) > 0 else None)[
         args.feature][:args.samples]
 
     tokens = [x for x in range(
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--subset", type=str, default="gov_report")
     parser.add_argument("-f", "--feature", type=str, default="input")
     parser.add_argument("--batch-size", type=int, default=1)
-    parser.add_argument("--max-tokens", type=int, default=4000)
+    parser.add_argument("--max-tokens", type=int, default=8000)
     parser.add_argument("--min-tokens", type=int, default=200)
     parser.add_argument("--tokens-step", type=int, default=200)
     parser.add_argument("--split", type=str, default="test")

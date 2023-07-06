@@ -76,9 +76,10 @@ def main(args):
     for model in tqdm(models, desc="Model", leave=False):
         torch.cuda.empty_cache()
 
-        loaded = load_model(model, args.load_in_8bit, args.load_in_4bit, args.max_tokens + args.tokens_step)
+        loaded = load_model(model, args.load_in_8bit,
+                            args.load_in_4bit, args.max_tokens + args.tokens_step)
         apply_patches(loaded, args.max_tokens + args.tokens_step, args.dynamic_ntk,
-                    args.dynamic_linear, args.ntk, args.linear)
+                      args.dynamic_linear, args.ntk, args.linear)
 
         pipe = pipeline("text-generation", model=loaded,
                         tokenizer=tokenizer, pad_token_id=tokenizer.eos_token_id)
@@ -109,11 +110,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--model", action="append", nargs="+")
     parser.add_argument("--fixed-length", type=int)
-    parser.add_argument("--max-tokens", type=int, default=4000)
+    parser.add_argument("--max-tokens", type=int, default=8000)
     parser.add_argument("--min-tokens", type=int, default=200)
     parser.add_argument("--tokens-step", type=int, default=200)
     parser.add_argument("--length-step", type=int, default=25)
-    parser.add_argument("--iterations", type=int, default=50)
+    parser.add_argument("--iterations", type=int, default=20)
     parser.add_argument("--output-file", type=str)
     parser.add_argument("--dynamic-linear", action="store_true")
     parser.add_argument("--dynamic-ntk", type=float)
