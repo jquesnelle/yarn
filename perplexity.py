@@ -175,6 +175,6 @@ if __name__ == "__main__":
     parser.add_argument("--ntk", type=float)
     parser.add_argument("--linear", type=float)
     parser.add_argument("--output-file", type=str)
-    parser.add_argument("--load_in_8bit", action="store_true")
-    parser.add_argument("--load_in_4bit", action="store_true")
+    parser.add_argument("--load-in-8bit", action="store_true")
+    parser.add_argument("--load-in-4bit", action="store_true")
     main(parser.parse_args())
