@@ -4,3 +4,4 @@ venv/
 *.csv
 /.vscode
 /output
+*.txt

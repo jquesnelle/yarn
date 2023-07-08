@@ -125,8 +125,8 @@ def main(args):
     tokenizer.pad_token = tokenizer.eos_token
 
     perplexity = Perplexity()
-    input_texts = datasets.load_dataset(args.dataset, name=args.subset if len(args.subset) > 0 else None, split=args.split if len(args.split) > 0 else None)[
-        args.feature][:args.samples]
+    input_texts = datasets.load_dataset(args.dataset, name=args.subset if len(
+        args.subset) > 0 else None, split=args.split if len(args.split) > 0 else None)[args.feature][:args.samples]
 
     tokens = [x for x in range(
         args.min_tokens, args.max_tokens + 1, args.tokens_step)]
