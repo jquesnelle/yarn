@@ -21,7 +21,7 @@ def find_newbase_ntk(dim, base=10000, scale=1):
     return base * scale ** (dim / (dim-2))
 
 class LlamaPartNTKScaledRotaryEmbedding(torch.nn.Module):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, scale=1, ntk_factor=1, extrapolation_factor=1, device=None):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, scale=1, ntk_factor=1, extrapolation_factor=1, original_max_position_embeddings=2048, device=None):
         super().__init__()
         
         #Interpolation constants found experimentally for LLaMA (might not be totally optimal though)
@@ -40,12 +40,12 @@ class LlamaPartNTKScaledRotaryEmbedding(torch.nn.Module):
         current_device = inv_freq_ntk.device
         
         #Combine NTK and Linear
-        low, high = find_correction_range(beta_0, beta_1, dim, base, max_position_embeddings)
+        low, high = find_correction_range(beta_0, beta_1, dim, base, original_max_position_embeddings)
         inv_freq_mask = (1 - linear_ramp_mask(low, high, dim // 2).type(current_dtype).to(current_device)) * ntk_factor
         inv_freq = inv_freq_linear * (1 - inv_freq_mask) + inv_freq_ntk * inv_freq_mask
     
         #Combine Extrapolation and NTK and Linear
-        low, high = find_correction_range(gamma_0, gamma_1, dim, base, max_position_embeddings)
+        low, high = find_correction_range(gamma_0, gamma_1, dim, base, original_max_position_embeddings)
         inv_freq_mask = (1 - linear_ramp_mask(low, high, dim // 2).type(current_dtype).to(current_device)) * extrapolation_factor
         inv_freq = inv_freq * (1 - inv_freq_mask) + inv_freq_base * inv_freq_mask
 
