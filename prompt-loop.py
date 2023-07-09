@@ -16,8 +16,8 @@ def main(args):
     apply_patches(model, args.max_new_tokens, args.dynamic_ntk,
                   args.dynamic_linear, args.ntk, args.linear)
 
-    pipe = pipeline("text-generation", model=model,
-                    tokenizer=tokenizer, pad_token_id=tokenizer.eos_token_id)
+    pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, pad_token_id=tokenizer.eos_token_id,
+                    temperature=args.temperature, repetition_penalty=args.repetition_penalty, do_sample=args.temperature is not None)
 
     while True:
         if args.input_file is None:
@@ -41,6 +41,8 @@ if __name__ == "__main__":
     parser.add_argument("--load-in-4bit", action="store_true")
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--input-file", type=str)
+    parser.add_argument("--temperature", type=float)
+    parser.add_argument("--repetition-penalty", type=float)
 
     args = parser.parse_args()
     main(args)
