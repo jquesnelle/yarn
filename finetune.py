@@ -47,6 +47,7 @@ class ModelArguments:
     use_xpos: Optional[bool] = field(default=False)
     fp8: Optional[bool] = field(default=False)
     ntk_alpha: Optional[float] = field(default=None)
+    part_ntk_scale: Optional[float] = field(default=None)
 
 
 @dataclass
@@ -83,6 +84,7 @@ def main():
         config.transformer_engine = model_args.fp8
         config.ntk_alpha = model_args.ntk_alpha
         config.position_interpolation_scale = model_args.position_interpolation_scale
+        config.part_ntk_scale = model_args.part_ntk_scale
 
         model = LlamaForCausalLM.from_pretrained(model_args.model_name_or_path, device_map={
                                                  "": f"cuda:{int(os.environ.get('LOCAL_RANK', '0'))}"}, torch_dtype=torch.bfloat16, config=config)
