@@ -13,7 +13,7 @@ def main(args):
 
     model = load_model(args.model, args.load_in_8bit,
                        args.load_in_4bit, args.max_tokens)
-    apply_patches(model, args.max_tokens, args.dynamic_ntk,
+    apply_patches(model, args.max_new_tokens, args.dynamic_ntk,
                   args.dynamic_linear, args.ntk, args.linear, args.part_ntk)
 
     pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, pad_token_id=tokenizer.eos_token_id,
