@@ -25,7 +25,7 @@ def main(args):
     
     model = load_model(args.model, args.load_in_8bit, args.load_in_4bit, args.max_tokens)
     apply_patches(model, args.max_tokens, args.dynamic_ntk,
-                    args.dynamic_linear, args.ntk, args.linear)
+                    args.dynamic_linear, args.ntk, args.linear, args.part_ntk)
     
     choice_tokens = [x[0] for x in tokenizer(CHOICES, add_special_tokens=False).input_ids]
     decoded_choice = tokenizer.decode(choice_tokens, clean_up_tokenization_spaces=True)
@@ -70,6 +70,7 @@ if __name__ == "__main__":
     parser.add_argument("--dynamic-ntk", type=float)
     parser.add_argument("--ntk", type=float)
     parser.add_argument("--linear", type=float)
+    parser.add_argument("--part-ntk", type=float)
     parser.add_argument("--load-in-8bit", action="store_true")
     parser.add_argument("--load-in-4bit", action="store_true")
     parser.add_argument("--limit", type=int)
