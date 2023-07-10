@@ -41,7 +41,7 @@ def main(args):
         output = model.generate(tokenized_prompt, max_new_tokens=1, return_dict_in_generate=True, output_scores=True)
         scores = output.scores[0][0]
         choice_scores = [x.cpu() for x in [scores[choice_tokens[0]], scores[choice_tokens[1]], scores[choice_tokens[2]], scores[choice_tokens[3]]]]
-        selection = numpy.argmax(choice_scores)
+        selection = numpy.argmax([x.float().cpu() for x in choice_scores])
         # decoded_output = tokenizer.decode(output[0], skip_special_tokens=True)
         # try:
         #     selection = CHOICES.index(decoded_output[-1])
