@@ -22,6 +22,12 @@ def patch_llama_for_linear_scaled_rotary_embeddings(model, scale):
             each.self_attn.head_dim, scale=scale, device=each.self_attn.rotary_emb.inv_freq.device)
 
 
+def patch_llama_for_part_ntk_scaled_rotary_embeddings(model, scale):
+    from .LlamaPartNTKScaledRotaryEmbedding import LlamaPartNTKScaledRotaryEmbedding
+    for each in model.model.layers:
+        each.self_attn.rotary_emb = LlamaPartNTKScaledRotaryEmbedding(
+            each.self_attn.head_dim, scale=scale, device=each.self_attn.rotary_emb.inv_freq.device)
+
 def patch_gptneox_for_scaled_rotary_embeddings(model):
     from .GPTNeoXDynamicScaledRotaryEmbedding import GPTNeoXDynamicScaledRotaryEmbedding
     for each in model.gpt_neox.layers:

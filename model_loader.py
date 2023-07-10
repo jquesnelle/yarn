@@ -32,7 +32,7 @@ def load_model(model, load_in_8bit, load_in_4bit, length):
 
     return loaded
 
-def apply_patches(loaded, length, dynamic_ntk, dynamic_linear, ntk, linear):
+def apply_patches(loaded, length, dynamic_ntk, dynamic_linear, ntk, linear, part_ntk):
     if "GPTNeoXForCausalLM" in loaded.config.architectures:
         patch_gptneox_for_longer_sequences(loaded, length)
     if dynamic_linear:
@@ -61,6 +61,12 @@ def apply_patches(loaded, length, dynamic_ntk, dynamic_linear, ntk, linear):
     elif linear:
         if "LlamaForCausalLM" in loaded.config.architectures:
             patch_llama_for_linear_scaled_rotary_embeddings(loaded, scale=linear)
+        else:
+            raise RuntimeError(
+                f"Unsupported architecture {loaded.config.architectures} for linear")
+    elif part_ntk:
+        if "LlamaForCausalLM" in loaded.config.architectures:
+            patch_llama_for_part_ntk_scaled_rotary_embeddings(loaded, scale=part_ntk)
         else:
             raise RuntimeError(
                 f"Unsupported architecture {loaded.config.architectures} for linear")
