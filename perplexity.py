@@ -138,7 +138,7 @@ def main(args):
         loaded = load_model(model, args.load_in_8bit,
                             args.load_in_4bit, args.max_tokens)
         apply_patches(loaded, args.max_tokens, args.dynamic_ntk,
-                      args.dynamic_linear, args.ntk, args.linear, args.part_ntk)
+                      args.dynamic_linear, args.dynamic_part_ntk, args.ntk, args.linear, args.part_ntk)
 
         result = []
         for max_length in tokens:
@@ -175,6 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("--ntk", type=float)
     parser.add_argument("--part-ntk", type=float)
     parser.add_argument("--linear", type=float)
+    parser.add_argument("--dynamic-part-ntk", action="store_true")
     parser.add_argument("--output-file", type=str)
     parser.add_argument("--load-in-8bit", action="store_true")
     parser.add_argument("--load-in-4bit", action="store_true")
