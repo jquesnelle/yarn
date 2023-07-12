@@ -52,6 +52,8 @@ def apply_patches(loaded, length, dynamic_ntk, dynamic_linear, dynamic_part_ntk,
     elif dynamic_part_ntk:
         if "LlamaForCausalLM" in loaded.config.architectures:
             patch_llama_for_dynamic_part_ntk_rotary_embeddings(loaded)
+        elif "RWForCausalLM" in loaded.config.architectures:
+            patch_falcon_for_dynamic_part_ntk_rotary_embeddings(loaded)
         else:
             raise RuntimeError(
                 f"Unsupported architecture {loaded.config.architectures} for dyanmic part ntk")

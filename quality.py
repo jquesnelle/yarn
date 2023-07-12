@@ -10,25 +10,34 @@ from model_loader import load_model, apply_patches
 ZERO_SCROLLS_QUALITY_PROMPT = "You are provided a story and a multiple-choice question with 4 possible answers (marked by A, B, C, D). Choose the best answer by writing its corresponding letter (either A, B, C, or D).\n\nStory:\n{story}\n\nQuestion and Possible Answers:\n{question}\n (A) {a}\n (B) {b}\n (C) {c}\n (D) {d}"
 CHOICES = ["A", "B", "C", "D"]
 
+
 def get_prompt(sample):
     options = sample["options"]
-    instruction = ZERO_SCROLLS_QUALITY_PROMPT.format(story=sample["article"], question=sample["question"], a=options[0], b=options[1], c=options[2], d=options[3])
+    instruction = ZERO_SCROLLS_QUALITY_PROMPT.format(
+        story=sample["article"], question=sample["question"], a=options[0], b=options[1], c=options[2], d=options[3])
     return f"{instruction}\n\nAnswer: ("
 
+
 def main(args):
-    tokenizer = AutoTokenizer.from_pretrained(args.model, model_max_length=sys.maxsize, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.model, model_max_length=sys.maxsize, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token_id = tokenizer.eos_token_id
 
     dataset = load_dataset("emozilla/quality", split=args.split)
     dataset = dataset.map(lambda sample: {"prompt": get_prompt(sample)})
-    dataset = dataset.filter(lambda sample: len(tokenizer(sample["prompt"]).input_ids) <= args.max_tokens - 1)
-    
-    model = load_model(args.model, args.load_in_8bit, args.load_in_4bit, args.max_tokens)
+    dataset = dataset.filter(lambda sample: len(
+        tokenizer(sample["prompt"]).input_ids) <= args.max_tokens - 1)
+
+    model = load_model(args.model, args.load_in_8bit,
+                       args.load_in_4bit, args.max_tokens)
     apply_patches(model, args.max_tokens, args.dynamic_ntk,
-                    args.dynamic_linear, args.ntk, args.linear, args.part_ntk)
-    
-    choice_tokens = [x[0] for x in tokenizer(CHOICES, add_special_tokens=False).input_ids]
-    decoded_choice = tokenizer.decode(choice_tokens, clean_up_tokenization_spaces=True)
+                  args.dynamic_linear, args.dynamic_part_ntk, args.ntk, args.linear, args.part_ntk)
+
+    choice_tokens = [x[0] for x in tokenizer(
+        CHOICES, add_special_tokens=False).input_ids]
+    decoded_choice = tokenizer.decode(
+        choice_tokens, clean_up_tokenization_spaces=True)
 
     correct_answers = 0
     i = 0
@@ -36,22 +45,28 @@ def main(args):
     bar = tqdm(total=max)
     while i < max:
         sample = dataset[i]
-        tokenized_prompt = tokenizer(sample["prompt"], return_tensors="pt").input_ids.to("cuda")
+        tokenized_prompt = tokenizer(sample["prompt"], return_tensors="pt")
+        input_ids = tokenized_prompt.input_ids.to("cuda")
+        attention_mask = tokenized_prompt.attention_mask.to("cuda")
 
-        output = model.generate(tokenized_prompt, max_new_tokens=1, return_dict_in_generate=True, output_scores=True)
+        output = model.generate(input_ids, attention_mask=attention_mask,
+                                max_new_tokens=1, return_dict_in_generate=True, output_scores=True, pad_token_id=tokenizer.eos_token_id)
         scores = output.scores[0][0]
-        choice_scores = [x.cpu() for x in [scores[choice_tokens[0]], scores[choice_tokens[1]], scores[choice_tokens[2]], scores[choice_tokens[3]]]]
+        choice_scores = [x.cpu() for x in [scores[choice_tokens[0]],
+                                           scores[choice_tokens[1]], scores[choice_tokens[2]], scores[choice_tokens[3]]]]
         selection = numpy.argmax([x.float().cpu() for x in choice_scores])
         # decoded_output = tokenizer.decode(output[0], skip_special_tokens=True)
         # try:
         #     selection = CHOICES.index(decoded_output[-1])
         # except ValueError:
         #     selection = -1
+        # print(f"Choice: {CHOICES[selection]} Correct: {CHOICES[sample['answer']]}")
 
         correct_answers += 1 if selection == sample["answer"] else 0
 
         if args.print_choices:
-            print(f"Choice: {CHOICES[selection]} Correct: {CHOICES[sample['answer']]}")
+            print(
+                f"Choice: {CHOICES[selection]} Correct: {CHOICES[sample['answer']]}")
 
         i += 1
         percent = (correct_answers / i) * 100.0
@@ -71,6 +86,7 @@ if __name__ == "__main__":
     parser.add_argument("--ntk", type=float)
     parser.add_argument("--linear", type=float)
     parser.add_argument("--part-ntk", type=float)
+    parser.add_argument("--dynamic-part-ntk", action="store_true")
     parser.add_argument("--load-in-8bit", action="store_true")
     parser.add_argument("--load-in-4bit", action="store_true")
     parser.add_argument("--limit", type=int)
