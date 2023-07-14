@@ -1,15 +1,15 @@
+from argparse import ArgumentParser
 from transformers import AutoConfig, AutoModelForCausalLM, BitsAndBytesConfig
 from scaled_rope.patch import *
 
-def load_model(model, load_in_8bit, load_in_4bit, length):
-    config = AutoConfig.from_pretrained(model, trust_remote_code=True)
-    if length and "MPTForCausalLM" in config.architectures:
-        config.max_seq_len = max(length, config.max_seq_len)
 
-    if load_in_8bit or load_in_4bit:
+def load_model(model, args):
+    config = AutoConfig.from_pretrained(model, trust_remote_code=True)
+
+    if args.load_in_8bit or args.load_in_4bit:
         quantization_config = BitsAndBytesConfig(
-            load_in_4bit=load_in_4bit,
-            load_in_8bit=load_in_8bit,
+            load_in_4bit=args.load_in_4bit,
+            load_in_8bit=args.load_in_8bit,
             llm_int8_threshold=6.0,
             llm_int8_has_fp16_weight=False,
             bnb_4bit_compute_dtype=torch.bfloat16,
@@ -32,49 +32,75 @@ def load_model(model, load_in_8bit, load_in_4bit, length):
 
     return loaded
 
-def apply_patches(loaded, length, dynamic_ntk, dynamic_linear, dynamic_part_ntk, ntk, linear, part_ntk):
-    if "GPTNeoXForCausalLM" in loaded.config.architectures:
-        patch_gptneox_for_longer_sequences(loaded, length)
-    if dynamic_linear:
-        if "GPTNeoXForCausalLM" in loaded.config.architectures:
-            patch_gptneox_for_scaled_rotary_embeddings(loaded)
-        elif "LlamaForCausalLM" in loaded.config.architectures:
-            patch_llama_for_dynamic_scaled_rotary_embeddings(loaded)
+
+def add_args(parser: ArgumentParser):
+    parser.add_argument("--dynamic-linear", action="store_true")
+    parser.add_argument("--dynamic-ntk", type=float)
+    parser.add_argument("--dynamic-part-ntk", action="store_true")
+    parser.add_argument("--ntk", type=float)
+    parser.add_argument("--part-ntk", type=float)
+    parser.add_argument("--linear", type=float)
+    parser.add_argument("--output-file", type=str)
+    parser.add_argument("--load-in-8bit", action="store_true")
+    parser.add_argument("--load-in-4bit", action="store_true")
+    parser.add_argument("--finetuned", action="store_true")
+    parser.add_argument("--gpt-neox-max-length", type=int)
+    return parser
+
+
+def apply_patches(model, args):
+    if "GPTNeoXForCausalLM" in model.config.architectures:
+        assert args.gpt_neox_max_length is not None
+        patch_gptneox_for_longer_sequences(model, args.gpt_neox_max_length)
+    if args.dynamic_linear:
+        if "GPTNeoXForCausalLM" in model.config.architectures:
+            patch_gptneox_for_scaled_rotary_embeddings(model)
+        elif "LlamaForCausalLM" in model.config.architectures:
+            patch_llama_for_dynamic_scaled_rotary_embeddings(model)
         else:
             raise RuntimeError(
-                f"Unsupported architecture {loaded.config.architectures} for dyanmic linear")
-    elif dynamic_ntk:
-        if "LlamaForCausalLM" in loaded.config.architectures:
-            patch_llama_for_dynamic_scaled_rotary_embeddings(loaded, ntk=dynamic_ntk)
+                f"Unsupported architecture {model.config.architectures} for dyanmic linear")
+    elif args.dynamic_ntk:
+        if "LlamaForCausalLM" in model.config.architectures:
+            patch_llama_for_dynamic_scaled_rotary_embeddings(
+                model, ntk=args.dynamic_ntk)
         else:
             raise RuntimeError(
-                f"Unsupported architecture {loaded.config.architectures} for dyanmic ntk")
-    elif dynamic_part_ntk:
-        if "LlamaForCausalLM" in loaded.config.architectures:
-            patch_llama_for_dynamic_part_ntk_rotary_embeddings(loaded)
-        elif "RWForCausalLM" in loaded.config.architectures:
-            patch_falcon_for_dynamic_part_ntk_rotary_embeddings(loaded)
+                f"Unsupported architecture {model.config.architectures} for dyanmic ntk")
+    elif args.dynamic_part_ntk:
+        if "LlamaForCausalLM" in model.config.architectures:
+            patch_llama_for_dynamic_part_ntk_rotary_embeddings(
+                model, args.finetuned)
+        elif "RWForCausalLM" in model.config.architectures:
+            patch_falcon_for_dynamic_part_ntk_rotary_embeddings(model)
         else:
             raise RuntimeError(
-                f"Unsupported architecture {loaded.config.architectures} for dyanmic part ntk")
-    elif ntk:
-        if "GPTNeoXForCausalLM" in loaded.config.architectures:
+                f"Unsupported architecture {model.config.architectures} for dyanmic part ntk")
+    elif args.ntk:
+        if "GPTNeoXForCausalLM" in model.config.architectures:
             patch_gptneox_for_ntk_scaled_rotary_embeddings(
-                loaded, ntk)
-        elif "LlamaForCausalLM" in loaded.config.architectures:
-            patch_llama_for_ntk_scaled_rotary_embeddings(loaded, ntk)
+                model, args.ntk)
+        elif "LlamaForCausalLM" in model.config.architectures:
+            patch_llama_for_ntk_scaled_rotary_embeddings(model, args.ntk)
         else:
             raise RuntimeError(
-                f"Unsupported architecture {loaded.config.architectures} for ntk")
-    elif linear:
-        if "LlamaForCausalLM" in loaded.config.architectures:
-            patch_llama_for_linear_scaled_rotary_embeddings(loaded, scale=linear)
+                f"Unsupported architecture {model.config.architectures} for ntk")
+    elif args.linear:
+        if "LlamaForCausalLM" in model.config.architectures:
+            patch_llama_for_linear_scaled_rotary_embeddings(
+                model, scale=args.linear)
         else:
             raise RuntimeError(
-                f"Unsupported architecture {loaded.config.architectures} for linear")
-    elif part_ntk:
-        if "LlamaForCausalLM" in loaded.config.architectures:
-            patch_llama_for_part_ntk_scaled_rotary_embeddings(loaded, scale=part_ntk)
+                f"Unsupported architecture {model.config.architectures} for linear")
+    elif args.part_ntk:
+        if "LlamaForCausalLM" in model.config.architectures:
+            patch_llama_for_part_ntk_scaled_rotary_embeddings(
+                model, scale=args.part_ntk)
         else:
             raise RuntimeError(
-                f"Unsupported architecture {loaded.config.architectures} for part ntk")
+                f"Unsupported architecture {model.config.architectures} for part ntk")
+    return model
+
+
+def load_model_and_apply_patches(model, args):
+    return apply_patches(load_model(model, args), args)

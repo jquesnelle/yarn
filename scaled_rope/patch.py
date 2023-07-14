@@ -7,11 +7,11 @@ def patch_llama_for_dynamic_scaled_rotary_embeddings(model, ntk):
         each.self_attn.rotary_emb = LlamaDynamicScaledRotaryEmbedding(
             each.self_attn.head_dim, device=each.self_attn.rotary_emb.inv_freq.device, ntk=ntk)
         
-def patch_llama_for_dynamic_part_ntk_rotary_embeddings(model):
+def patch_llama_for_dynamic_part_ntk_rotary_embeddings(model, finetuned):
     from .LlamaDynamicPartNTKScaledRotaryEmbedding import LlamaDynamicPartNTKScaledRotaryEmbedding
     for each in model.model.layers:
         each.self_attn.rotary_emb = LlamaDynamicPartNTKScaledRotaryEmbedding(
-            each.self_attn.head_dim, device=each.self_attn.rotary_emb.inv_freq.device)
+            each.self_attn.head_dim, finetuned=finetuned, device=each.self_attn.rotary_emb.inv_freq.device)
 
 def patch_falcon_for_dynamic_part_ntk_rotary_embeddings(model):
     from .FalconDynamicPartNTKScaledRotaryEmbedding import FalconDynamicPartNTKScaledRotaryEmbedding

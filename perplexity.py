@@ -135,10 +135,7 @@ def main(args):
     for model in tqdm(models, desc="Model", leave=False):
         torch.cuda.empty_cache()
 
-        loaded = load_model(model, args.load_in_8bit,
-                            args.load_in_4bit, args.max_tokens)
-        apply_patches(loaded, args.max_tokens, args.dynamic_ntk,
-                      args.dynamic_linear, args.dynamic_part_ntk, args.ntk, args.linear, args.part_ntk)
+        loaded = load_model_and_apply_patches(model, args)
 
         result = []
         for max_length in tokens:
@@ -170,13 +167,4 @@ if __name__ == "__main__":
     parser.add_argument("--tokens-step", type=int, default=200)
     parser.add_argument("--split", type=str, default="test")
     parser.add_argument("--samples", type=int, default=50)
-    parser.add_argument("--dynamic-linear", action="store_true")
-    parser.add_argument("--dynamic-ntk", type=float)
-    parser.add_argument("--ntk", type=float)
-    parser.add_argument("--part-ntk", type=float)
-    parser.add_argument("--linear", type=float)
-    parser.add_argument("--dynamic-part-ntk", action="store_true")
-    parser.add_argument("--output-file", type=str)
-    parser.add_argument("--load-in-8bit", action="store_true")
-    parser.add_argument("--load-in-4bit", action="store_true")
-    main(parser.parse_args())
+    main(add_args(parser).parse_args())
