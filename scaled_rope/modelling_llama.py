@@ -31,6 +31,13 @@ from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutpu
 from transformers.modeling_utils import PreTrainedModel
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
 from .configuration_llama import LlamaConfig
+from .dynamic_sparse_triton import attention_fn
+try:
+    from flash_attn.flash_blocksparse_attn_interface import convert_blockmask
+    from flash_attn.flash_blocksparse_attn_interface import flash_attn_cuda
+    from flash_attn.modules.mha import FlashSelfAttention
+except:
+    flash_attn_installed = False
 
 from einops import rearrange
 
@@ -378,6 +385,8 @@ class LlamaAttention(nn.Module):
             self.rotary_emb = LlamaPartNTKScaledRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings, scale=config.part_ntk_scale)
         else:
             self.rotary_emb =  LlamaScaledRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings, position_interpolation_scale=config.position_interpolation_scale)
+        if self.config.use_flash:
+            self.flash_self_attention = FlashSelfAttention(causal = True, softmax_scale = (1/self.num_heads) ** 0.5)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -429,7 +438,7 @@ class LlamaAttention(nn.Module):
         past_key_value = (key_states, value_states) if use_cache else None
 
         # We only apply sdp attention if we don't need to output the whole attention matrix
-        if not output_attentions:
+        if self.config.use_torch and not output_attentions:
             attn_output = torch.nn.functional.scaled_dot_product_attention(
                 query_states,
                 key_states,
@@ -438,7 +447,44 @@ class LlamaAttention(nn.Module):
                 is_causal=False,
             )
             attn_weights = None
-        else:
+        if self.config.use_sparse and not output_attentions:
+            assert self.config.sparsity is not None, "If you want to use Sparse Flash Attention you must specify sparsity in config"
+            query_states = rearrange(query_states, "b h n l -> b l n h")
+            key_states = rearrange(key_states, "b h n l -> b l n h")
+            value_states = rearrange(value_states, "b h n l -> b l n h")
+            # Cast to mixed precision to use qk sparse attention
+            query_states, key_states, value_states = query_states.to(torch.bfloat16).cuda(), key_states.to(torch.bfloat16).cuda(), value_states.to(torch.bfloat16).cuda()
+            attn_output = attention_fn(query_states, key_states, value_states, sparsity=0.5)
+            attn_output = rearrange(attn_output, "b l n h -> b h n l")
+        if self.config.use_sparse and not output_attentions:
+            if flash_attn_installed == False:
+                raise RuntimeError("Flash Atention not installed, but you are trying to use block sparse flash attention")
+            if query_states[-1] % 256 != 0:
+                raise RuntimeError("Query Length must be a factor of 256, use regular flash attention instead")
+            dropout = self.dropout_p
+
+            query_states = rearrange(query_states, "b h n l -> b l n h")
+            key_states = rearrange(key_states, "b h n l -> b l n h")
+            value_states = rearrange(value_states, "b h n l -> b l n h")
+            scale = query_states.shape[-1] ** (-0.5)
+            is_causal = False
+            batch_size, seqlen, num_head, head_dim = query_states.shape
+            qt = query_states.reshape((batch_size * seqlen, query_states.shape[2], query_states.shape[3]))
+            kt = key_states.reshape((batch_size * seqlen, key_states.shape[2], key_states.shape[3]))
+            vt = value_states.reshape((batch_size * seqlen, value_states.shape[2], value_states.shape[3]))
+
+            cu_seqlens = torch.arange(0, (batch_size + 1) * seqlen, step=seqlen, dtype=torch.int32, device=query_states.device)
+            blockmask = torch.full((seqlen//16, seqlen//256), 1, dtype=torch.int32).to(device="cuda:0")
+            blockmask = convert_blockmask(blockmask, is_causal)
+
+            attn_output, _ = flash_attn_cuda.fwd_block(qt, kt, vt, cu_seqlens, cu_seqlens, blockmask, seqlen, seqlen, dropout, scale, is_causal, False, None)
+            attn_output = rearrange(attn_output, "b l n h -> b h n l")
+        if self.config.use_flash and not output_attentions:
+            if flash_attn_installed == False:
+                raise RuntimeError("Flash Atention not installed, but you are trying to use flash attention")
+            qkv = torch.concat([query_states.unsqueeze(2), key_states.unsqueeze(2), value_states.unsqueeze(2)], dim = 2).permute(0, 3, 2, 1, 4).half()
+            attn_output = self.flash_self_attention(qkv)
+        if output_attentions:
             attn_weights = torch.matmul(
                 query_states, key_states.transpose(2, 3)
             ) / math.sqrt(self.head_dim)
