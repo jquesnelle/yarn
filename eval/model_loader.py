@@ -40,7 +40,6 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--ntk", type=float)
     parser.add_argument("--part-ntk", type=float)
     parser.add_argument("--linear", type=float)
-    parser.add_argument("--output-file", type=str)
     parser.add_argument("--load-in-8bit", action="store_true")
     parser.add_argument("--load-in-4bit", action="store_true")
     parser.add_argument("--finetuned", action="store_true")

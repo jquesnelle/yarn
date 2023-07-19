@@ -113,4 +113,4 @@ if __name__ == "__main__":
     parser.add_argument("--length-step", type=int, default=25)
     parser.add_argument("--iterations", type=int, default=20)
     parser.add_argument("--output-file", type=str)
-    main(parser.parse_args())
+    main(add_args(parser).parse_args())
