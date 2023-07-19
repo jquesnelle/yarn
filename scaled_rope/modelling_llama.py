@@ -38,7 +38,6 @@ logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "LlamaConfig"
 
-
 # Copied from transformers.models.bart.modeling_bart._make_causal_mask
 def _make_causal_mask(
     input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
@@ -71,6 +70,50 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
 
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
+def _ntk_find_correction_factor(num_rotations, dim, base=10000, max_position_embeddings=2048):
+    return (dim * math.log(max_position_embeddings/(num_rotations * 2 * math.pi)))/(2 * math.log(base)) #Inverse dim formula to find number of rotations
+
+def _ntk_find_correction_range(low_rot, high_rot, dim, base=10000, max_position_embeddings=2048):
+    low = math.floor(_ntk_find_correction_factor(low_rot, dim, base, max_position_embeddings))
+    high = math.ceil(_ntk_find_correction_factor(high_rot, dim, base, max_position_embeddings))
+    return max(low, 0), min(high, dim-1) #Clamp values just in case
+
+def _ntk_linear_ramp_mask(min, max, dim):
+    if min == max:
+        max += 0.001 #Prevent singularity
+
+    linear_func = (torch.arange(dim, dtype=torch.float32) - min) / (max - min)
+    ramp_func = torch.clamp(linear_func, 0, 1)
+    return ramp_func
+
+def _ntk_find_newbase_ntk(dim, base=10000, scale=1):
+    return base * scale ** (dim / (dim-2))
+
+def _ntk_build_inv_freq(dim, base, scaling_factor, ntk_factor, extrapolation_factor, original_max_position_embeddings, device):
+    #Interpolation constants found experimentally for LLaMA (might not be totally optimal though)
+    #Do not change unless there is a good reason for doing so!
+    beta_0 = 1.25
+    beta_1 = 0.75
+    gamma_0 = 16
+    gamma_1 = 2
+
+    #Three RoPE extrapolation/interpolation methods
+    inv_freq_base = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+    inv_freq_linear = 1.0 / (scaling_factor * (base ** (torch.arange(0, dim, 2).float().to(device) / dim)))
+    inv_freq_ntk = 1.0 / (_ntk_find_newbase_ntk(dim, base, scaling_factor) ** (torch.arange(0, dim, 2).float().to(device) / dim))
+
+    current_dtype = inv_freq_ntk.dtype
+    current_device = inv_freq_ntk.device
+
+    #Combine NTK and Linear
+    low, high = _ntk_find_correction_range(beta_0, beta_1, dim, base, original_max_position_embeddings)
+    inv_freq_mask = (1 - _ntk_linear_ramp_mask(low, high, dim // 2).type(current_dtype).to(current_device)) * ntk_factor
+    inv_freq = inv_freq_linear * (1 - inv_freq_mask) + inv_freq_ntk * inv_freq_mask
+
+    #Combine Extrapolation and NTK and Linear
+    low, high = _ntk_find_correction_range(gamma_0, gamma_1, dim, base, original_max_position_embeddings)
+    inv_freq_mask = (1 - _ntk_linear_ramp_mask(low, high, dim // 2).type(current_dtype).to(current_device)) * extrapolation_factor
+    return inv_freq * (1 - inv_freq_mask) + inv_freq_base * inv_freq_mask
 
 class LlamaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
@@ -169,6 +212,18 @@ class LlamaDynamicNTKScalingRotaryEmbedding(LlamaRotaryEmbedding):
         self.register_buffer("cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False)
         self.register_buffer("sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False)
 
+
+class LlamaNTKByPartsRotaryEmbedding(LlamaRotaryEmbedding):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None, scaling_factor=1.0, ntk_factor=1.0, extrapolation_factor=1.0, original_max_position_embeddings=2048):
+        super().__init__(dim, max_position_embeddings, base, device)
+
+        inv_freq = _ntk_build_inv_freq(dim, base, scaling_factor, ntk_factor, extrapolation_factor, original_max_position_embeddings, device)
+        self.register_buffer("inv_freq", inv_freq)
+
+        # Build here to make `torch.jit.trace` work.
+        self._set_cos_sin_cache(
+            seq_len=max_position_embeddings, device=self.inv_freq.device, dtype=torch.get_default_dtype()
+        )
 
 def rotate_half(x):
     """Rotates half the hidden dims of the input."""
@@ -271,6 +326,11 @@ class LlamaAttention(nn.Module):
             elif scaling_type == "dynamic":
                 self.rotary_emb = LlamaDynamicNTKScalingRotaryEmbedding(
                     self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
+                )
+            elif scaling_type == "ntk-by-parts":
+                original_max_position_embeddings = self.config.rope_scaling["original_max_position_embeddings"]
+                self.rotary_emb = LlamaNTKByPartsRotaryEmbedding(
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor, original_max_position_embeddings=original_max_position_embeddings
                 )
             else:
                 raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
