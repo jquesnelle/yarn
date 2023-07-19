@@ -3,7 +3,7 @@ import torch
 class LlamaLinearScaledRotaryEmbedding(torch.nn.Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, scale=1, device=None):
         super().__init__()
-        self.scale = 1 / scale
+        self.scale = scale
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
         self.register_buffer("inv_freq", inv_freq)
 

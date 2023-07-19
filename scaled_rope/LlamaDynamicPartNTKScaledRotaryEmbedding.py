@@ -29,7 +29,7 @@ def find_newbase_ntk(dim, base=10000, scale=1):
 
 
 class LlamaDynamicPartNTKScaledRotaryEmbedding(torch.nn.Module):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, ntk_factor=1, extrapolation_factor=1, finetuned=False, device=None):
+    def __init__(self, dim, max_position_embeddings=2048, original_max_position_embeddings=2048, base=10000, ntk_factor=1, extrapolation_factor=1, finetuned=False, device=None):
         super().__init__()
         self.dim = dim
         self.base = base
@@ -37,7 +37,7 @@ class LlamaDynamicPartNTKScaledRotaryEmbedding(torch.nn.Module):
         self.extrapolation_factor = extrapolation_factor
         self.max_position_embeddings = max_position_embeddings
         if finetuned:
-            self.ntk(self.max_position_embeddings / 2048, device)
+            self.ntk(self.max_position_embeddings / original_max_position_embeddings, device)
         else:
             inv_freq = 1.0 / \
                 (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
