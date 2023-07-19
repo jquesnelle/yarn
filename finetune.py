@@ -12,7 +12,7 @@ from transformers.training_args import OptimizerNames
 from utilities.config import argument_parsing, rank_zero_info
 from utilities.efficiency_utils import fuse_gelu
 
-from data import get_one_dataset, DataCollator
+from data import DataCollator, get_one_dataset
 
 
 def main():
@@ -52,7 +52,14 @@ def main():
         eval_accumulation_steps=training_conf.eval_accumulation_steps,
         resume_from_checkpoint=training_conf.resume_from_checkpoint,
         report_to="wandb" if training_conf.log_wandb else None,
+        ddp_find_unused_parameters=training_conf.ddp_find_unused_parameters,
     )
+    if training_conf.multinode:
+        device_count = torch.cuda.device_count()
+        rank = args.local_rank
+        device = rank % device_count
+        torch.cuda.set_device(device)
+        args.ddp_find_unused_parameters = False
     last_checkpoint = (
         get_last_checkpoint(training_conf.output_dir)
         if os.path.exists(training_conf.output_dir)
@@ -82,7 +89,6 @@ def main():
             training_conf.max_length = config.max_position_embeddings
         model = LlamaForCausalLM.from_pretrained(
             training_conf.model_name_or_path,
-            # device_map={"": f"cuda:{int(os.environ.get('LOCAL_RANK', '0'))}"},
             torch_dtype=torch.bfloat16
             if training_conf.dtype == "bf16"
             else torch.float16,
@@ -110,7 +116,9 @@ def main():
 
     if training_conf.pretokenized is False:
         # "Loads training_conf.dataset_name Text datasets that have been packed with <s> ... </s> but not tokenized
-        train_dataset, eval_dataset = get_one_dataset(training_conf,max_val_set=training_conf.max_val_set)
+        train_dataset, eval_dataset = get_one_dataset(
+            training_conf, max_val_set=training_conf.max_val_set
+        )
         collate_fn = DataCollator(
             tokenizer,
             max_length=training_conf.max_length,
@@ -119,10 +127,14 @@ def main():
     else:
         # Loads pre-tokenized datasets (
         train_dataset = datasets.load_dataset(training_conf.dataset_names[0])
-        train_dataset["labels"] = train_dataset["input_ids"].clone() # For CausalLM LM shifting is done in model forward.
-        train_val_split = train_dataset['train'].train_test_split(test_size=training_conf.max_val_set, seed=42)
-        eval_dataset = train_val_split['test']
-        train_dataset = train_val_split['train']
+        train_dataset["labels"] = train_dataset[
+            "input_ids"
+        ].clone()  # For CausalLM LM shifting is done in model forward.
+        train_val_split = train_dataset["train"].train_test_split(
+            test_size=training_conf.max_val_set, seed=42
+        )
+        eval_dataset = train_val_split["test"]
+        train_dataset = train_val_split["train"]
         collate_fn = default_data_collator
 
     if training_conf.log_wandb and (
