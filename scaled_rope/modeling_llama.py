@@ -402,10 +402,7 @@ class LlamaAttention(nn.Module):
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         if self.use_flash_attention and not output_attentions:
-            dropout = 0.0
             dtype = query_states.dtype
-
-            scale = query_states.shape[-1] ** (-0.5)
 
             batch, _, seq_len_q, _ = query_states.shape
             _, _, seq_len_k, _ = value_states.shape
@@ -420,15 +417,13 @@ class LlamaAttention(nn.Module):
             cu_seqlens_k = torch.arange(0, (batch + 1) * seq_len_k, step=seq_len_k, dtype=torch.int32,
                                     device=key_states.device)
 
+            dropout = 0.0
+            scale = query_states.shape[-1] ** (-0.5)
+            causal = seq_len_q == seq_len_k
             # No point returning attn_probs since it is not guaranteed to be correct
-            if seq_len_q == seq_len_k:
-                attn_output = flash_attn_varlen_func(query_states, key_states, value_states,
-                                                    cu_seqlens_q, cu_seqlens_k, seq_len_q, seq_len_k,
-                                                    dropout, scale, causal=True, return_attn_probs=False)
-            else:
-                attn_output = flash_attn_varlen_func(query_states, key_states, value_states,
-                                                    cu_seqlens_q, cu_seqlens_k, seq_len_q, seq_len_k,
-                                                    dropout, scale, causal=False, return_attn_probs=False)
+            attn_output = flash_attn_varlen_func(query_states, key_states, value_states,
+                                                cu_seqlens_q, cu_seqlens_k, seq_len_q, seq_len_k,
+                                                dropout, scale, causal=causal, return_attn_probs=False)
 
             attn_output = rearrange(attn_output, "(b s) h d-> b h s d", s = seq_len_q)
             attn_output = attn_output.to(dtype)
