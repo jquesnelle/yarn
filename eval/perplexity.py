@@ -167,4 +167,5 @@ if __name__ == "__main__":
     parser.add_argument("--tokens-step", type=int, default=200)
     parser.add_argument("--split", type=str, default="test")
     parser.add_argument("--samples", type=int, default=50)
+    parser.add_argument("--output-file", type=str)
     main(add_args(parser).parse_args())
