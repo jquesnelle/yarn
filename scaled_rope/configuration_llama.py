@@ -122,6 +122,7 @@ class LlamaConfig(PretrainedConfig):
         pretraining_tp=1,
         tie_word_embeddings=False,
         rope_scaling=None,
+        use_flash_attention=False,
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -143,6 +144,13 @@ class LlamaConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.rope_scaling = rope_scaling
         self._rope_scaling_validation()
+        self.use_flash_attention = use_flash_attention
+        if self.use_flash_attention:
+            try:
+                from flash_attn.flash_attn_interface import flash_attn_varlen_func
+                from einops import rearrange
+            except:
+                raise ValueError("`use_flash_attention` requires Flash Attention 2+ and einops.\nTry `pip install einops` and installing Flash Attention from from https://github.com/Dao-AILab/flash-attention")
 
         super().__init__(
             pad_token_id=pad_token_id,
@@ -159,9 +167,9 @@ class LlamaConfig(PretrainedConfig):
         if self.rope_scaling is None:
             return
 
-        if not isinstance(self.rope_scaling, dict) or len(self.rope_scaling) != 2:
+        if not isinstance(self.rope_scaling, dict):
             raise ValueError(
-                "`rope_scaling` must be a dictionary with with two fields, `name` and `factor`, "
+                "`rope_scaling` must be a dictionary, "
                 f"got {self.rope_scaling}"
             )
         rope_scaling_type = self.rope_scaling.get("type", None)
