@@ -34,7 +34,7 @@ from transformers.utils import add_start_docstrings, add_start_docstrings_to_mod
 from .configuration_llama import LlamaConfig
 
 try:
-    from flash_attn.flash_attn_interface import flash_attn_varlen_func
+    from flash_attn.flash_attn_interface import flash_attn_varlen_func, flash_attn_qkvpacked_func
     from einops import rearrange
     have_flash_attention = True
 except:
@@ -402,31 +402,19 @@ class LlamaAttention(nn.Module):
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         if self.use_flash_attention and not output_attentions:
+            dropout = 0.0
+            softmax_scale = query_states.shape[-1] ** (-0.5)
             dtype = query_states.dtype
 
-            batch, _, seq_len_q, _ = query_states.shape
-            _, _, seq_len_k, _ = value_states.shape
+            q, k, v = (
+                query_states.transpose(1, 2),
+                key_states.transpose(1, 2),
+                value_states.transpose(1, 2),
+            )
+            qkv = torch.stack([q, k, v], dim=2).to(torch.float16)
 
-            query_states = rearrange(query_states, "b h s d -> (b s) h d")
-            key_states = rearrange(key_states, "b h s d -> (b s) h d")
-            value_states = rearrange(value_states, "b h s d -> (b s) h d")
-
-            cu_seqlens_q = torch.arange(0, (batch + 1) * seq_len_q, step=seq_len_q, dtype=torch.int32,
-                                    device=query_states.device)
-
-            cu_seqlens_k = torch.arange(0, (batch + 1) * seq_len_k, step=seq_len_k, dtype=torch.int32,
-                                    device=key_states.device)
-
-            dropout = 0.0
-            scale = query_states.shape[-1] ** (-0.5)
-            causal = seq_len_q == seq_len_k
-            # No point returning attn_probs since it is not guaranteed to be correct
-            attn_output = flash_attn_varlen_func(query_states, key_states, value_states,
-                                                cu_seqlens_q, cu_seqlens_k, seq_len_q, seq_len_k,
-                                                dropout, scale, causal=causal, return_attn_probs=False)
-
-            attn_output = rearrange(attn_output, "(b s) h d-> b h s d", s = seq_len_q)
-            attn_output = attn_output.to(dtype)
+            attn_output = flash_attn_qkvpacked_func(qkv, dropout, softmax_scale=softmax_scale, causal=True)
+            attn_output = attn_output.transpose(1, 2).to(dtype)
         else:
             attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
 
