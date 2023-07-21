@@ -34,7 +34,8 @@ from transformers.utils import add_start_docstrings, add_start_docstrings_to_mod
 from .configuration_llama import LlamaConfig
 
 try:
-    from flash_attn.flash_attn_interface import flash_attn_varlen_func, flash_attn_qkvpacked_func
+    from flash_attn.flash_attn_interface import flash_attn_varlen_func, flash_attn_qkvpacked_func, flash_attn_varlen_qkvpacked_func
+    from flash_attn.bert_padding import pad_input, unpad_input
     from einops import rearrange
     have_flash_attention = True
 except:
@@ -402,18 +403,60 @@ class LlamaAttention(nn.Module):
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         if self.use_flash_attention and not output_attentions:
-            dropout = 0.0
-            softmax_scale = query_states.shape[-1] ** (-0.5)
             dtype = query_states.dtype
+            # transform the data into the format required by flash attention
+            qkv = torch.stack(
+                [query_states, key_states, value_states], dim=2
+            ).to(torch.float16)  # [bsz, nh, 3, q_len, hd]
+            qkv = qkv.transpose(1, 3)  # [bsz, q_len, 3, nh, hd]
+            # We have disabled _prepare_decoder_attention_mask in LlamaModel
+            # the attention_mask should be the same as the key_padding_mask
+            key_padding_mask = attention_mask
 
-            q, k, v = (
-                query_states.transpose(1, 2),
-                key_states.transpose(1, 2),
-                value_states.transpose(1, 2),
-            )
-            qkv = torch.stack([q, k, v], dim=2).to(torch.float16)
+            if key_padding_mask is None:
+                qkv = rearrange(qkv, "b s ... -> (b s) ...")
+                max_s = q_len
+                cu_q_lens = torch.arange(
+                    0,
+                    (bsz + 1) * q_len,
+                    step=q_len,
+                    dtype=torch.int32,
+                    device=qkv.device,
+                )
+                attn_output = flash_attn_varlen_qkvpacked_func(
+                    qkv, cu_q_lens, max_s, 0.0, softmax_scale=None, causal=True
+                )
+                attn_output = rearrange(attn_output, "(b s) ... -> b s ...", b=bsz)
+            else:
+                nheads = qkv.shape[-2]
 
-            attn_output = flash_attn_qkvpacked_func(qkv, dropout, softmax_scale=softmax_scale, causal=True)
+                # pylint: disable=invalid-name
+                x = rearrange(qkv, "b s three h d -> b s (three h d)")
+                x_unpad, indices, cu_q_lens, max_s = unpad_input(x, key_padding_mask)
+                x_unpad = rearrange(
+                    x_unpad,
+                    "nnz (three h d) -> nnz three h d",
+                    three=3,
+                    h=nheads,
+                )
+                output_unpad = flash_attn_varlen_qkvpacked_func(
+                    x_unpad,
+                    cu_q_lens,
+                    max_s,
+                    0.0,
+                    softmax_scale=None,
+                    causal=True,
+                )
+                attn_output = rearrange(
+                    pad_input(
+                        rearrange(output_unpad, "nnz h d -> nnz (h d)"),
+                        indices,
+                        bsz,
+                        q_len,
+                    ),
+                    "b s (h d) -> b s h d",
+                    h=nheads,
+                )
             attn_output = attn_output.transpose(1, 2).to(dtype)
         else:
             attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
@@ -651,6 +694,7 @@ class LlamaModel(LlamaPreTrainedModel):
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.gradient_checkpointing = False
+        self.use_flash_attention = config.use_flash_attention
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -662,6 +706,10 @@ class LlamaModel(LlamaPreTrainedModel):
 
     # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
     def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
+        if self.use_flash_attention:
+            # Disable the transformation of the attention mask in LlamaModel as the flash attention
+            # requires the attention mask to be the same as the key_padding_mask
+            return attention_mask
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
