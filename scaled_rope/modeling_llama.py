@@ -34,8 +34,8 @@ from transformers.utils import add_start_docstrings, add_start_docstrings_to_mod
 from .configuration_llama import LlamaConfig
 
 try:
-    from flash_attn.flash_attn_interface import flash_attn_varlen_func, flash_attn_qkvpacked_func, flash_attn_varlen_qkvpacked_func
-    from flash_attn.bert_padding import pad_input, unpad_input
+    from flash_attn.flash_attn_interface import flash_attn_varlen_func
+    from flash_attn.modules.mha import FlashSelfAttention
     from einops import rearrange
     have_flash_attention = True
 except:
@@ -121,6 +121,79 @@ def _ntk_build_inv_freq(dim, base, scaling_factor, ntk_factor, extrapolation_fac
     low, high = _ntk_find_correction_range(gamma_0, gamma_1, dim, base, original_max_position_embeddings)
     inv_freq_mask = (1 - _ntk_linear_ramp_mask(low, high, dim // 2).type(current_dtype).to(current_device)) * extrapolation_factor
     return inv_freq * (1 - inv_freq_mask) + inv_freq_base * inv_freq_mask
+
+def compute_flash_attention_packed_masked(flash_attn, q, k, v, attention_mask=None, head_mask=None):
+    # q, k, v: [bs, seq_len, num_attention_heads, attn_head_size]
+    # attention_mask (float): [bs, seq_len]
+    batch_size, max_len = q.size(0), q.size(1)
+
+    qkv = torch.stack([q, k, v], dim=2).to(
+        torch.float16
+    )  # need to truncate in case input is fp32
+    cu_seqlens, max_seqlen = None, None
+
+    if attention_mask is None:
+        return flash_attn(qkv, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
+    else:
+        # Limitation: non-contiguous attention mask will not be handled correctly
+        # model will be able to pay attention between the first and last non-masked token, i.e. left- and right-side padding is supported.
+        csums = (attention_mask >= 0).cumsum(dim=1)
+        ends = csums.argmax(dim=1) + 1
+        starts = ends - csums.max(dim=1).values
+        seqlens = ends - starts
+
+        qkv = torch.cat([qkv[i, starts[i] : ends[i]] for i in range(batch_size)], dim=0)
+        zero = torch.zeros_like(
+            seqlens[:1]
+        )  # torch.tensor([0]) with correct dtype and device
+        cu_seqlens = torch.cat([zero, seqlens.cumsum(dim=0)], dim=0).to(torch.int32)
+        max_seqlen = seqlens.max().item()
+
+        out = flash_attn(qkv, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen)
+        # out: [num_unmasked_tokens, num_attention_heads, attn_head_size]
+
+        seqs = [out[start:end] for start, end in zip(cu_seqlens[:-1], cu_seqlens[1:])]
+        # stack and pad sequences together
+        padded_seqs = [
+            F.pad(
+                seqs[i],
+                (0, 0) * (seqs[i].dim() - 1) + (starts[i], max_len - ends[i]),
+                value=0.0,
+            )
+            for i in range(batch_size)
+        ]
+        out = torch.stack(padded_seqs)
+        return out
+
+def compute_flash_attention_varlen_unmasked(query_states, key_states, value_states, dropout=0.0):
+         
+    scale = query_states.shape[-1] ** (-0.5)
+
+    batch, _, seq_len_q, _ = query_states.shape
+    _, _, seq_len_k, _ = value_states.shape
+
+    query_states = rearrange(query_states, "b h s d -> (b s) h d")
+    key_states = rearrange(key_states, "b h s d -> (b s) h d")
+    value_states = rearrange(value_states, "b h s d -> (b s) h d")
+
+    cu_seqlens_q = torch.arange(0, (batch + 1) * seq_len_q, step=seq_len_q, dtype=torch.int32,
+                            device=query_states.device)
+
+    cu_seqlens_k = torch.arange(0, (batch + 1) * seq_len_k, step=seq_len_k, dtype=torch.int32,
+                            device=key_states.device)
+
+
+    # No point returning attn_probs since it is not guaranteed to be correct
+    if seq_len_q == seq_len_k:
+        attn_output = flash_attn_varlen_func(query_states, key_states, value_states,
+                                            cu_seqlens_q, cu_seqlens_k, seq_len_q, seq_len_k,
+                                            dropout, scale, causal=True, return_attn_probs=False)
+    else:
+        attn_output = flash_attn_varlen_func(query_states, key_states, value_states,
+                                            cu_seqlens_q, cu_seqlens_k, seq_len_q, seq_len_k,
+                                            dropout, scale, causal=False, return_attn_probs=False)
+
+    return rearrange(attn_output, "(b s) h d-> b h s d", s = seq_len_q)
 
 class LlamaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
@@ -320,8 +393,11 @@ class LlamaAttention(nn.Module):
         self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
         self._init_rope()
         self.use_flash_attention = config.use_flash_attention
-        if self.use_flash_attention and not have_flash_attention:
-            raise RuntimeError("Flash Attention 2 not installed")
+        if self.use_flash_attention:
+            if not have_flash_attention:
+                raise RuntimeError("Flash Attention 2 not installed")
+            self.flash_attention = FlashSelfAttention(causal=True)
+            
 
     def _init_rope(self):
         if self.config.rope_scaling is None:
@@ -403,61 +479,24 @@ class LlamaAttention(nn.Module):
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         if self.use_flash_attention and not output_attentions:
-            dtype = query_states.dtype
-            # transform the data into the format required by flash attention
-            qkv = torch.stack(
-                [query_states, key_states, value_states], dim=2
-            ).to(torch.float16)  # [bsz, nh, 3, q_len, hd]
-            qkv = qkv.transpose(1, 3)  # [bsz, q_len, 3, nh, hd]
-            # We have disabled _prepare_decoder_attention_mask in LlamaModel
-            # the attention_mask should be the same as the key_padding_mask
-            key_padding_mask = attention_mask
+            out_dtype = value_states.dtype
+            if query_states.shape == key_states.shape:
+                if attention_mask is not None:
+                    attention_mask = attention_mask[:, 0, -1]
 
-            if key_padding_mask is None:
-                qkv = rearrange(qkv, "b s ... -> (b s) ...")
-                max_s = q_len
-                cu_q_lens = torch.arange(
-                    0,
-                    (bsz + 1) * q_len,
-                    step=q_len,
-                    dtype=torch.int32,
-                    device=qkv.device,
+                self.flash_attention.train(self.training)
+                q, k, v = (
+                    query_states.transpose(1, 2),
+                    key_states.transpose(1, 2),
+                    value_states.transpose(1, 2),
                 )
-                attn_output = flash_attn_varlen_qkvpacked_func(
-                    qkv, cu_q_lens, max_s, 0.0, softmax_scale=None, causal=True
-                )
-                attn_output = rearrange(attn_output, "(b s) ... -> b s ...", b=bsz)
+                attn_output = compute_flash_attention_packed_masked(self.flash_attention, q, k, v, attention_mask)
+                attn_output = attn_output.transpose(1, 2)
             else:
-                nheads = qkv.shape[-2]
-
-                # pylint: disable=invalid-name
-                x = rearrange(qkv, "b s three h d -> b s (three h d)")
-                x_unpad, indices, cu_q_lens, max_s = unpad_input(x, key_padding_mask)
-                x_unpad = rearrange(
-                    x_unpad,
-                    "nnz (three h d) -> nnz three h d",
-                    three=3,
-                    h=nheads,
-                )
-                output_unpad = flash_attn_varlen_qkvpacked_func(
-                    x_unpad,
-                    cu_q_lens,
-                    max_s,
-                    0.0,
-                    softmax_scale=None,
-                    causal=True,
-                )
-                attn_output = rearrange(
-                    pad_input(
-                        rearrange(output_unpad, "nnz h d -> nnz (h d)"),
-                        indices,
-                        bsz,
-                        q_len,
-                    ),
-                    "b s (h d) -> b s h d",
-                    h=nheads,
-                )
-            attn_output = attn_output.transpose(1, 2).to(dtype)
+                if attention_mask is not None:
+                    logger.warning_once("`use_flash_attention` does not support a custom `attention_mask`, but one was provided and will be ignored. If you get strange behavior, set `use_flash_attention=False`.")
+                attn_output = compute_flash_attention_varlen_unmasked(query_states, key_states, value_states)
+            attn_output = attn_output.to(out_dtype)
         else:
             attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
 
@@ -706,10 +745,6 @@ class LlamaModel(LlamaPreTrainedModel):
 
     # Copied from transformers.models.bart.modeling_bart.BartDecoder._prepare_decoder_attention_mask
     def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
-        if self.use_flash_attention:
-            # Disable the transformation of the attention mask in LlamaModel as the flash attention
-            # requires the attention mask to be the same as the key_padding_mask
-            return attention_mask
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
