@@ -6,3 +6,4 @@ venv/
 /output
 *.txt
 *.egg-info
+last_run_prepared/
