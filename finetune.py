@@ -266,7 +266,7 @@ def load_model(
         model = prepare_model_for_kbit_training(
             model, use_gradient_checkpointing=cfg.gradient_checkpointing
         )
-
+    model.enable_input_require_grads()
     model, lora_config = load_adapter(model, cfg, adapter)
 
     if cfg.ddp and not load_in_8bit:

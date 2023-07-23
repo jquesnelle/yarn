@@ -7,3 +7,4 @@ venv/
 *.txt
 *.egg-info
 last_run_prepared/
+wandb/
