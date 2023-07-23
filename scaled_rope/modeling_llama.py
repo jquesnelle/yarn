@@ -480,7 +480,7 @@ class LlamaAttention(nn.Module):
 
         if self.use_flash_attention and not output_attentions:
             out_dtype = value_states.dtype
-            if query_states.shape == key_states.shape:
+            if self.training or query_states.shape == key_states.shape:
                 if attention_mask is not None:
                     attention_mask = attention_mask[:, 0, -1]
 
