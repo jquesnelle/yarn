@@ -5,6 +5,8 @@ from scaled_rope.patch import *
 
 def load_model(model, args):
     config = AutoConfig.from_pretrained(model, trust_remote_code=True)
+    if args.max_position_embeddings:
+        config.max_position_embeddings = args.max_position_embeddings
 
     if args.load_in_8bit or args.load_in_4bit:
         quantization_config = BitsAndBytesConfig(
@@ -44,6 +46,8 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--load-in-4bit", action="store_true")
     parser.add_argument("--finetuned", action="store_true")
     parser.add_argument("--gpt-neox-max-length", type=int)
+    parser.add_argument("--adapter", type=str)
+    parser.add_argument("--max-position-embeddings", type=int)
     return parser
 
 
@@ -98,6 +102,12 @@ def apply_patches(model, args):
         else:
             raise RuntimeError(
                 f"Unsupported architecture {model.config.architectures} for part ntk")
+
+    if args.adapter:
+        from peft import PeftModel
+        model = PeftModel.from_pretrained(model, args.adapter)
+        model = model.merge_and_unload()
+
     return model
 
 
