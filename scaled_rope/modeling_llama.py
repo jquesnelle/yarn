@@ -122,7 +122,11 @@ def _ntk_build_inv_freq(dim, base, scaling_factor, ntk_factor, extrapolation_fac
     inv_freq_mask = (1 - _ntk_linear_ramp_mask(low, high, dim // 2).type(current_dtype).to(current_device)) * extrapolation_factor
     return inv_freq * (1 - inv_freq_mask) + inv_freq_base * inv_freq_mask
 
-def compute_flash_attention_packed_masked(flash_attn, q, k, v, attention_mask=None, head_mask=None):
+def compute_flash_attention_packed(flash_attn, q, k, v, attention_mask=None):
+    if attention_mask is not None:
+        attention_mask = attention_mask[:, 0, -1]
+    q, k, v = (q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2))
+
     # q, k, v: [bs, seq_len, num_attention_heads, attn_head_size]
     # attention_mask (float): [bs, seq_len]
     batch_size, max_len = q.size(0), q.size(1)
@@ -162,26 +166,35 @@ def compute_flash_attention_packed_masked(flash_attn, q, k, v, attention_mask=No
             )
             for i in range(batch_size)
         ]
-        out = torch.stack(padded_seqs)
-        return out
 
-def compute_flash_attention_varlen_unmasked(query_states, key_states, value_states, dropout=0.0):
+        return torch.stack(padded_seqs).transpose(1, 2)
+
+def compute_flash_attention_inference(query_states, key_states, value_states, attention_mask=None, dropout=0.0):
          
     scale = query_states.shape[-1] ** (-0.5)
 
     batch, _, seq_len_q, _ = query_states.shape
     _, _, seq_len_k, _ = value_states.shape
 
-    query_states = rearrange(query_states, "b h s d -> (b s) h d")
-    key_states = rearrange(key_states, "b h s d -> (b s) h d")
-    value_states = rearrange(value_states, "b h s d -> (b s) h d")
+    query_states = rearrange(query_states, "b h s d -> b s h d").to(torch.float16)
+    key_states = rearrange(key_states, "b h s d -> b s h d").to(torch.float16)
+    value_states = rearrange(value_states, "b h s d -> b s h d").to(torch.float16)
+
+    if attention_mask is not None:
+        attention_mask = attention_mask[:, 0, -1]
+        csums = (attention_mask >= 0).cumsum(dim=1)
+        ends = csums.argmax(dim=1) + 1
+        starts = ends - csums.max(dim=1).values
+
+        query_states = torch.cat([query_states[i, starts[i] : ends[i]] for i in range(batch)], dim=0)
+        key_states = torch.cat([key_states[i, starts[i] : ends[i]] for i in range(batch)], dim=0)
+        value_states = torch.cat([value_states[i, starts[i] : ends[i]] for i in range(batch)], dim=0)
 
     cu_seqlens_q = torch.arange(0, (batch + 1) * seq_len_q, step=seq_len_q, dtype=torch.int32,
                             device=query_states.device)
 
     cu_seqlens_k = torch.arange(0, (batch + 1) * seq_len_k, step=seq_len_k, dtype=torch.int32,
                             device=key_states.device)
-
 
     # No point returning attn_probs since it is not guaranteed to be correct
     if seq_len_q == seq_len_k:
@@ -193,7 +206,7 @@ def compute_flash_attention_varlen_unmasked(query_states, key_states, value_stat
                                             cu_seqlens_q, cu_seqlens_k, seq_len_q, seq_len_k,
                                             dropout, scale, causal=False, return_attn_probs=False)
 
-    return rearrange(attn_output, "(b s) h d-> b h s d", s = seq_len_q)
+    return rearrange(attn_output, "(b s) h d-> b h s d", b = batch)
 
 class LlamaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
@@ -481,21 +494,10 @@ class LlamaAttention(nn.Module):
         if self.use_flash_attention and not output_attentions:
             out_dtype = value_states.dtype
             if self.training or query_states.shape == key_states.shape:
-                if attention_mask is not None:
-                    attention_mask = attention_mask[:, 0, -1]
-
                 self.flash_attention.train(self.training)
-                q, k, v = (
-                    query_states.transpose(1, 2),
-                    key_states.transpose(1, 2),
-                    value_states.transpose(1, 2),
-                )
-                attn_output = compute_flash_attention_packed_masked(self.flash_attention, q, k, v, attention_mask)
-                attn_output = attn_output.transpose(1, 2)
+                attn_output = compute_flash_attention_packed(self.flash_attention, query_states, key_states, value_states, attention_mask)
             else:
-                if attention_mask is not None:
-                    logger.warning_once("`use_flash_attention` does not support a custom `attention_mask`, but one was provided and will be ignored. If you get strange behavior, set `use_flash_attention=False`.")
-                attn_output = compute_flash_attention_varlen_unmasked(query_states, key_states, value_states)
+                attn_output = compute_flash_attention_inference(query_states, key_states, value_states, attention_mask)
             attn_output = attn_output.to(out_dtype)
         else:
             attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
