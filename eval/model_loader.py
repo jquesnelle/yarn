@@ -16,8 +16,8 @@ def load_model(model, args):
     config = config_cls.from_pretrained(model, trust_remote_code=not args.custom_model)
     if args.max_position_embeddings:
         config.max_position_embeddings = args.max_position_embeddings
-    if args.use_cache is not None:
-        config.use_cache = args.use_cache
+    if args.no_use_cache:
+        config.use_cache = False
     if args.custom_model:
         if args.linear:
             config.rope_scaling = {
@@ -80,7 +80,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--max-position-embeddings", type=int)
     parser.add_argument("--custom-model", action="store_true")
     parser.add_argument("--flash-attention", action="store_true")
-    parser.add_argument("--use-cache", action="store_true")
+    parser.add_argument("--no-use-cache", action="store_true")
     return parser
 
 

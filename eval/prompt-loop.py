@@ -14,7 +14,8 @@ def main(args):
     model = load_model_and_apply_patches(args.model, args)
 
     pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, pad_token_id=tokenizer.eos_token_id,
-                    temperature=args.temperature, repetition_penalty=args.repetition_penalty, do_sample=args.temperature is not None)
+                    temperature=args.temperature, repetition_penalty=args.repetition_penalty,
+                    top_k=args.top_k, penalty_alpha=args.penalty_alpha, do_sample=args.temperature is not None)
 
     while True:
         if args.input_file is None:
@@ -34,6 +35,8 @@ if __name__ == "__main__":
     parser.add_argument("--input-file", type=str)
     parser.add_argument("--temperature", type=float)
     parser.add_argument("--repetition-penalty", type=float)
+    parser.add_argument("--penalty-alpha", type=float)
+    parser.add_argument("--top-k", type=int)
 
     args = add_args(parser).parse_args()
     main(args)
