@@ -18,6 +18,8 @@ def load_model(model, args):
         config.max_position_embeddings = args.max_position_embeddings
     if args.no_use_cache:
         config.use_cache = False
+    else:
+        config.use_cache = True
     if args.custom_model:
         if args.linear:
             config.rope_scaling = {
