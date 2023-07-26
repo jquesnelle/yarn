@@ -64,81 +64,6 @@ def choose_device(cfg):
         else:
             cfg.device_map = {"": cfg.device}
 
-
-def get_multi_line_input() -> Optional[str]:
-    print("Give me an instruction (Ctrl + D to finish): ")
-    instruction = ""
-    for line in sys.stdin:
-        instruction += line  # pylint: disable=consider-using-join
-    # instruction = pathlib.Path("/proc/self/fd/0").read_text()
-    return instruction
-
-
-def do_inference(cfg, model, tokenizer, prompter: Optional[str]):
-    default_tokens = {"unk_token": "<unk>", "bos_token": "<s>", "eos_token": "</s>"}
-
-    for token, symbol in default_tokens.items():
-        # If the token isn't already specified in the config, add it
-        if not (cfg.special_tokens and token in cfg.special_tokens):
-            tokenizer.add_special_tokens({token: symbol})
-
-    prompter_module = None
-    if prompter:
-        prompter_module = getattr(
-            importlib.import_module("axolotl.prompters"), prompter
-        )
-
-    if cfg.landmark_attention:
-        from axolotl.monkeypatch.llama_landmark_attn import set_model_mem_id
-
-        set_model_mem_id(model, tokenizer)
-        model.set_mem_cache_args(
-            max_seq_len=255, mem_freq=50, top_k=5, max_cache_size=None
-        )
-
-    while True:
-        print("=" * 80)
-        # support for multiline inputs
-        instruction = get_multi_line_input()
-        if not instruction:
-            return
-        if prompter_module:
-            prompt: str = next(
-                prompter_module().build_prompt(instruction=instruction.strip("\n"))
-            )
-        else:
-            prompt = instruction.strip()
-        batch = tokenizer(prompt, return_tensors="pt", add_special_tokens=True)
-
-        print("=" * 40)
-        model.eval()
-        with torch.no_grad():
-            generation_config = GenerationConfig(
-                repetition_penalty=1.1,
-                max_new_tokens=1024,
-                temperature=0.9,
-                top_p=0.95,
-                top_k=40,
-                bos_token_id=tokenizer.bos_token_id,
-                eos_token_id=tokenizer.eos_token_id,
-                pad_token_id=tokenizer.pad_token_id,
-                do_sample=True,
-                use_cache=True,
-                return_dict_in_generate=True,
-                output_attentions=False,
-                output_hidden_states=False,
-                output_scores=False,
-            )
-            streamer = TextStreamer(tokenizer)
-            generated = model.generate(
-                inputs=batch["input_ids"].to(cfg.device),
-                generation_config=generation_config,
-                streamer=streamer,
-            )
-        print("=" * 40)
-        print(tokenizer.decode(generated["sequences"].cpu().tolist()[0]))
-
-
 def choose_config(path: Path):
     yaml_files = list(path.glob("*.yml"))
 
@@ -172,7 +97,6 @@ def check_not_in(list1: List[str], list2: Union[Dict[str, Any], List[str]]) -> b
 def load_model(
     base_model, base_model_config, model_type, tokenizer, cfg, adapter="lora"
 ):
-    # type: (str, str, str, PreTrainedTokenizerBase, DictDefault, Optional[str]) -> Tuple[PreTrainedModel, Optional[PeftConfig]]
     """
     Load a model from a base model and a model type.
     """
@@ -267,7 +191,17 @@ def load_model(
             model, use_gradient_checkpointing=cfg.gradient_checkpointing
         )
     model.enable_input_require_grads()
-    model, lora_config = load_adapter(model, cfg, adapter)
+    if adapter == "frozen":
+        for name, param in model.named_parameters(recurse=True):
+            if param.requires_grad:
+                param.requires_grad = False
+                for module in cfg.frozen_target_modules:
+                    if module in name:
+                        param.requires_grad = True
+                        break
+        model, lora_config = model, None
+    else:
+        model, lora_config = load_adapter(model, cfg, adapter)
 
     if cfg.ddp and not load_in_8bit:
         model.to(f"cuda:{cfg.local_rank}")
@@ -286,7 +220,10 @@ def load_model(
     requires_grad = []
     for name, param in model.named_parameters(recurse=True):
         if param.requires_grad:
-            requires_grad.append(f"{name}: {param.requires_grad}")
+            grad_required = f"{name}: {param.requires_grad}"
+            if adapter == "frozen":
+                LOG.debug(grad_required)
+            requires_grad.append(grad_required)
     if len(requires_grad) == 0:
         LOG.warning("there are no parameters that require gradient updates")
     model.config.use_cache = False
@@ -403,17 +340,6 @@ def train(
         if cfg.local_rank == 0:
             LOG.info("saving merged model")
             model.save_pretrained(str(Path(cfg.output_dir) / "merged"))
-        return
-
-    if cfg.inference:
-        LOG.info("calling do_inference function")
-        prompter: Optional[str] = "AlpacaPrompter"
-        if "prompter" in kwargs:
-            if kwargs["prompter"] == "None":
-                prompter = None
-            else:
-                prompter = kwargs["prompter"]
-        do_inference(cfg, model, tokenizer, prompter=prompter)
         return
 
     if "shard" in kwargs:
