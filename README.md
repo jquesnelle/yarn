@@ -1,10 +1,10 @@
 # YaRN
-YaRN: Efficient Context Window Extension of Large Language Models
+[YaRN: Efficient Context Window Extension of Large Language Models](paper/yarn.pdf)
 
 This repo contains the code and data for the YaRN context window extension method.
 
 ```
-citation
+Awaiting arXiv announcement, citation will go here!
 ```
 
 ## Models
