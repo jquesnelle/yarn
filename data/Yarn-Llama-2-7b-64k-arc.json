@@ -1,0 +1,25 @@
+{
+  "results": {
+    "arc_challenge": {
+      "acc": 0.49402730375426623,
+      "acc_stderr": 0.014610348300255795,
+      "acc_norm": 0.523037542662116,
+      "acc_norm_stderr": 0.014595873205358266
+    }
+  },
+  "versions": {
+    "arc_challenge": 0
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=NousResearch/LLaMA-2-7B-YaRN-64K,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 25,
+    "batch_size": "2",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}

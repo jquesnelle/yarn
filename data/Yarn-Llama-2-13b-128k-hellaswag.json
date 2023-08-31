@@ -1,0 +1,25 @@
+{
+  "results": {
+    "hellaswag": {
+      "acc": 0.6189006174068911,
+      "acc_stderr": 0.0048466437356665445,
+      "acc_norm": 0.8224457279426409,
+      "acc_norm_stderr": 0.0038135610571503444
+    }
+  },
+  "versions": {
+    "hellaswag": 0
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=NousResearch/LLaMA-2-13B-YaRN-128K,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 10,
+    "batch_size": "2",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}

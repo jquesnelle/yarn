@@ -1,0 +1,13 @@
+accelerate
+datasets
+evaluate
+torch>=2
+transformers>=4.28.1
+tqdm
+einops
+sentencepiece
+protobuf==3.19.6
+scikit-learn
+matplotlib
+pandas
+numpy
