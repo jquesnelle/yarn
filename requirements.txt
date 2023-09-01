@@ -11,3 +11,4 @@ scikit-learn
 matplotlib
 pandas
 numpy
+wandb
