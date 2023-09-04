@@ -1,10 +1,17 @@
 # YaRN
-[YaRN: Efficient Context Window Extension of Large Language Models](paper/yarn.pdf)
+[YaRN: Efficient Context Window Extension of Large Language Models](https://arxiv.org/abs/2309.00071)
 
 This repo contains the code and data for the YaRN context window extension method.
 
 ```
-Awaiting arXiv announcement, citation will go here!
+@misc{peng2023yarn,
+      title={YaRN: Efficient Context Window Extension of Large Language Models}, 
+      author={Bowen Peng and Jeffrey Quesnelle and Honglu Fan and Enrico Shippole},
+      year={2023},
+      eprint={2309.00071},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
 ```
 
 ## Models
