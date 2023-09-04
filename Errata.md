@@ -5,7 +5,7 @@ Thank you to every reader that pointed these mistakes out!
 Equation 9: Terms `mL'/L` should be `mL/L'` instead.
 
 ### Section 2.3
-Equation 12:: `s*m` should be `m/s` instead.
+Equation 12: `s*m` should be `m/s` instead.
 
 ### Section 3.4
 
