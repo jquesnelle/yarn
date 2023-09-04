@@ -24,7 +24,7 @@ It should say instead:
 [...] it skews the attention softmax distribution to become "smoother" (i.e.
 increases the average entropy of the attention softmax). [...] the network "pays less attention" to specific tokens.
 [...]
-Since there is a increase of entropy in the attention softmax distribution as we interpolate RoPE
+Since there is an increase of entropy in the attention softmax distribution as we interpolate RoPE
 embeddings to longer context sizes, our goal is to reverse the increase of entropy (i.e. decrease the
 "temperature" of the attention logits).
 ```
