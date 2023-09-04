@@ -1,27 +1,17 @@
 # YaRN
-[YaRN: Efficient Context Window Extension of Large Language Models](https://arxiv.org/abs/2309.00071)
-
 This repo contains the code and data for the YaRN context window extension method.
 
-```
-@misc{peng2023yarn,
-      title={YaRN: Efficient Context Window Extension of Large Language Models}, 
-      author={Bowen Peng and Jeffrey Quesnelle and Honglu Fan and Enrico Shippole},
-      year={2023},
-      eprint={2309.00071},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
-}
-```
+## Preprint
 
-## Errata
+Preprint (arXiv): [YaRN: Efficient Context Window Extension of Large Language Models](https://arxiv.org/abs/2309.00071)
+
 A list of mistakes caught by our readers are listed here (thank you!): [Errata.md](Errata.md)  
-v2 of the paper will be published on arxiv with all the corrections.
+v2 of the preprint will be published on arxiv with all the corrections.
 
 ## Models
 
-We publish 7B and 13B variants of [LLaMA 2](https://about.fb.com/news/2023/07/llama-2/) fine-tuned with YaRN at 64K and 128K context window length.
-They are available under the LLaMA 2 license on 🤗 Hugging Face.
+We publish 7B and 13B variants of [Llama 2](https://about.fb.com/news/2023/07/llama-2/) fine-tuned with YaRN at 64K and 128K context window length.
+They are available under the Llama 2 license on 🤗 Hugging Face.
 
 | Size | Context | Link   |
 | ---: | ------: | :----- |
@@ -58,4 +48,17 @@ To reproduce the evaluations, install [lm-evaluation-harness](https://github.com
 ```sh
 # ./eval.sh
 # ./eval-harness.sh
+```
+
+### Citation
+
+```
+@misc{peng2023yarn,
+      title={YaRN: Efficient Context Window Extension of Large Language Models}, 
+      author={Bowen Peng and Jeffrey Quesnelle and Honglu Fan and Enrico Shippole},
+      year={2023},
+      eprint={2309.00071},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
 ```
