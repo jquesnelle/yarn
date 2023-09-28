@@ -35,3 +35,11 @@ python eval/perplexity.py \
     -m NousResearch/CodeLlama-7b-hf \
     -m NousResearch/Yarn-Llama-2-7b-64k \
     -m NousResearch/Yarn-Llama-2-7b-128k
+
+python eval/perplexity.py \
+    ${PROOFPILE_LONG_SMALL} ${CUSTOM} \
+    --output-file data/proofpile-long-small-8k.csv \
+    --min-tokens 2048 --max-tokens 16384 --tokens-step 2048 \
+    -m emozilla/Yarn-Llama-2-7b-8k \
+    -m emozilla/NTK-Llama-2-7b-8k \
+    -m conceptofmind/LLongMA-2-7b
