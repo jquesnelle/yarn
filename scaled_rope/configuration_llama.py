@@ -168,11 +168,11 @@ class LlamaConfig(PretrainedConfig):
             )
         rope_scaling_type = self.rope_scaling.get("type", None)
         rope_scaling_factor = self.rope_scaling.get("factor", None)
-        if rope_scaling_type is None or rope_scaling_type not in ["linear", "dynamic", "ntk-by-parts", "yarn", "dynamic-yarn"]:
+        if rope_scaling_type is None or rope_scaling_type not in ["linear", "dynamic", "ntk-by-parts", "yarn", "dynamic-yarn", "ntk"]:
             raise ValueError(
-                f"`rope_scaling`'s name field must be one of ['linear', 'dynamic', 'ntk-by-parts', 'yarn', 'dynamic-yarn'], got {rope_scaling_type}"
+                f"`rope_scaling`'s name field must be one of ['linear', 'dynamic', 'ntk-by-parts', 'yarn', 'dynamic-yarn', 'ntk'], got {rope_scaling_type}"
             )
-        if rope_scaling_factor is None or not isinstance(rope_scaling_factor, float) or rope_scaling_factor <= 1.0:
+        if rope_scaling_type != "ntk" and (rope_scaling_factor is None or not isinstance(rope_scaling_factor, float) or rope_scaling_factor <= 1.0):
             raise ValueError(f"`rope_scaling`'s factor field must be an float > 1, got {rope_scaling_factor}")
         if rope_scaling_type == "ntk-by-parts" or rope_scaling_type == "yarn" or rope_scaling_type == "dynamic-yarn":
             original_max_position_embeddings = self.rope_scaling.get("original_max_position_embeddings", None)

@@ -1,5 +1,5 @@
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 import argparse
 import os
 import wandb
@@ -51,11 +51,12 @@ def main(args):
 
     config = LlamaConfig.from_pretrained(args.model)
     config.rope_scaling = {
-        "type": "yarn",
-        "factor": args.yarn_factor,
+        "type": args.scaling_type,
+        "factor": args.scaling_factor,
         "original_max_position_embeddings": 4096
     }
-    config.max_position_embeddings = int(args.yarn_factor * 4096)
+    config.rope_theta = args.rope_theta
+    config.max_position_embeddings = int(args.scaling_factor * 4096)
 
     model = LlamaForCausalLM.from_pretrained(
         args.model,
@@ -63,7 +64,17 @@ def main(args):
         config=config
     )
 
-    train_dataset = load_dataset(args.dataset, split='train')
+    try:
+        train_dataset = load_dataset(args.dataset, split="train")
+    except:
+        train_dataset = load_from_disk(args.dataset)
+    if args.truncate:
+        def truncate(sample):
+            sample["input_ids"] = sample["input_ids"][0:args.truncate]
+            sample["labels"] = sample["labels"][0:args.truncate]
+            sample["attention_mask"] = sample["attention_mask"][0:args.truncate]
+            return sample
+        train_dataset = train_dataset.map(truncate, desc="Truncating", num_proc=32)
     train_loader = DataLoader(
         train_dataset,
         collate_fn=default_data_collator,
@@ -185,7 +196,10 @@ if __name__ == "__main__":
     args.add_argument("--lora", action="store_true")
     args.add_argument("--model", type=str,
                       default="NousResearch/Llama-2-7b-hf")
-    args.add_argument("--yarn-factor", type=float, default=16.0)
+    args.add_argument("--scaling-factor", type=float, default=16.0)
+    args.add_argument("--scaling-type", type=str)
+    args.add_argument("--rope-theta", type=float, default=10000.0)
+    args.add_argument("--truncate", type=int)
     args.add_argument("--dataset", type=str,
                       default="emozilla/pg_books-tokenized-bos-eos-chunked-65536")
     main(args.parse_args())

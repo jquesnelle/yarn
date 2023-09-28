@@ -461,7 +461,7 @@ class LlamaAttention(nn.Module):
                 original_max_position_embeddings=original_max_position_embeddings,
                 dynamic=scaling_type.startswith("dynamic"), finetuned=self.config.rope_scaling.get("finetuned", False)
             )
-        elif scaling_type == "linear":
+        elif scaling_type == "linear" or scaling_type == "ntk":
             self.rotary_emb = FlashRotaryEmbedding(
                 self.head_dim, base=self.rope_theta, interleaved=False, scaling_factor=scaling_factor,
             )
