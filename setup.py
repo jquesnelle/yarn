@@ -12,7 +12,6 @@ setup(
     version="0.1",
     packages=["scaled_rope"],
     install_requires=install_requires,
-    url='https://github.com/jquesnelle/scaled-rope/',
     license='MIT',
     classifiers=[
         "Programming Language :: Python :: 3",

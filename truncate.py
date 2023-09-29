@@ -17,6 +17,5 @@ if __name__ == "__main__":
     args.add_argument("truncate", type=int)
     args.add_argument("output", type=str)
     args.add_argument("--num-proc", type=int, default=32)
-    args.add_argument("--dataset", type=str,
-                      default="emozilla/pg_books-tokenized-bos-eos-chunked-65536")
+    args.add_argument("--dataset", type=str, required=True)
     main(args.parse_args())

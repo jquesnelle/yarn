@@ -1,9 +1,0 @@
-__pycache__/
-env/
-venv/
-/.vscode
-/output
-*.txt
-*.egg-info
-wandb/
-lm_cache/

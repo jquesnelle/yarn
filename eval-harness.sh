@@ -12,86 +12,86 @@ MMLU="--tasks=hendrycksTest-abstract_algebra,hendrycksTest-anatomy,hendrycksTest
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${ARC} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-7b-64k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-7b-64k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-7b-64k-arc.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${ARC} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-7b-128k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-7b-128k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-7b-128k-arc.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${ARC} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-13b-64k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-13b-64k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-13b-64k-arc.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${ARC} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-13b-128k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-13b-128k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-13b-128k-arc.json"
 
 ### Hellaswag
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${HELLASWAG} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-7b-64k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-7b-64k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-7b-64k-hellaswag.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${HELLASWAG} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-7b-128k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-7b-128k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-7b-128k-hellaswag.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${HELLASWAG} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-13b-64k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-13b-64k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-13b-64k-hellaswag.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${HELLASWAG} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-13b-128k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-13b-128k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-13b-128k-hellaswag.json"
 
 ### MMLU
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${MMLU} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-7b-64k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-7b-64k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-7b-64k-mmlu.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${MMLU} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-7b-128k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-7b-128k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-7b-128k-mmlu.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${MMLU} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-13b-64k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-13b-64k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-13b-64k-mmlu.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${MMLU} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-13b-128k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-13b-128k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-13b-128k-mmlu.json"
 
 ## TruthfulQA
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${TRUTHFULQA} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-7b-64k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-7b-64k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-7b-64k-truthfulqa.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${TRUTHFULQA} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-7b-128k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-7b-128k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-7b-128k-truthfulqa.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${TRUTHFULQA} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-13b-64k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-13b-64k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-13b-64k-truthfulqa.json"
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${TRUTHFULQA} \
-    --model_args="pretrained=NousResearch/Yarn-Llama-2-13b-128k,${MODEL_ARGS}" \
+    --model_args="pretrained=output/yarn-13b-128k,${MODEL_ARGS}" \
     --output_path="output/Yarn-Llama-2-13b-128k-truthfulqa.json"
