@@ -44,7 +44,7 @@ from .configuration_mistral import MistralConfig
 if is_flash_attn_available():
     from flash_attn import flash_attn_func, flash_attn_varlen_func
     from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input  # noqa
-    print("Flash Attention 2 available")
+
     _flash_supports_window_size = "window_size" in list(inspect.signature(flash_attn_func).parameters)
 
 
@@ -65,6 +65,23 @@ def _get_unpad_data(padding_mask):
         max_seqlen_in_batch,
     )
 
+
+# Copied from transformers.models.bart.modeling_bart._make_causal_mask
+def _make_causal_mask(
+    input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+):
+    """
+    Make causal mask used for bi-directional self-attention.
+    """
+    bsz, tgt_len = input_ids_shape
+    mask = torch.full((tgt_len, tgt_len), torch.finfo(dtype).min, device=device)
+    mask_cond = torch.arange(mask.size(-1), device=device)
+    mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+    mask = mask.to(dtype)
+
+    if past_key_values_length > 0:
+        mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
 
 def _make_sliding_window_causal_mask(
     input_ids_shape: torch.Size,
@@ -107,6 +124,30 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
 
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
 
+# Inverse dim formula to find dim based on number of rotations
+def _yarn_find_correction_dim(num_rotations, dim, base=10000, max_position_embeddings=2048):
+    return (dim * math.log(max_position_embeddings/(num_rotations * 2 * math.pi)))/(2 * math.log(base))
+
+# Find dim range bounds based on rotations
+def _yarn_find_correction_range(low_rot, high_rot, dim, base=10000, max_position_embeddings=2048):
+    low = math.floor(_yarn_find_correction_dim(
+        low_rot, dim, base, max_position_embeddings))
+    high = math.ceil(_yarn_find_correction_dim(
+        high_rot, dim, base, max_position_embeddings))
+    return max(low, 0), min(high, dim-1)  # Clamp values just in case
+
+def _yarn_linear_ramp_mask(min, max, dim):
+    if min == max:
+        max += 0.001  # Prevent singularity
+
+    linear_func = (torch.arange(dim, dtype=torch.float32) - min) / (max - min)
+    ramp_func = torch.clamp(linear_func, 0, 1)
+    return ramp_func
+
+def _yarn_get_mscale(scale=1):
+    if scale <= 1:
+        return 1.0
+    return 0.1 * math.log(scale) + 1.0
 
 # Copied from transformers.models.llama.modeling_llama.LlamaRMSNorm with Llama->Mistral
 class MistralRMSNorm(nn.Module):
@@ -162,6 +203,176 @@ class MistralRotaryEmbedding(nn.Module):
             self.sin_cached[:seq_len].to(dtype=x.dtype),
         )
 
+class MistralLinearScalingRotaryEmbedding(MistralRotaryEmbedding):
+    """MistralRotaryEmbedding extended with linear scaling. Credits to the Reddit user /u/kaiokendev"""
+
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None, scaling_factor=1.0):
+        self.scaling_factor = scaling_factor
+        super().__init__(dim, max_position_embeddings, base, device)
+
+    def _set_cos_sin_cache(self, seq_len, device, dtype):
+        self.max_seq_len_cached = seq_len
+        t = torch.arange(self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype)
+        t = t / self.scaling_factor
+
+        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        emb = torch.cat((freqs, freqs), dim=-1)
+        self.register_buffer("cos_cached", emb.cos().to(dtype), persistent=False)
+        self.register_buffer("sin_cached", emb.cos().to(dtype), persistent=False)
+
+
+class MistralDynamicNTKScalingRotaryEmbedding(MistralRotaryEmbedding):
+    """MistralRotaryEmbedding extended with Dynamic NTK scaling. Credits to the Reddit users /u/bloc97 and /u/emozilla"""
+
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None, scaling_factor=1.0):
+        self.scaling_factor = scaling_factor
+        super().__init__(dim, max_position_embeddings, base, device)
+
+    def _set_cos_sin_cache(self, seq_len, device, dtype):
+        self.max_seq_len_cached = seq_len
+
+        if seq_len > self.max_position_embeddings:
+            base = self.base * (
+                (self.scaling_factor * seq_len / self.max_position_embeddings) - (self.scaling_factor - 1)
+            ) ** (self.dim / (self.dim - 2))
+            inv_freq = 1.0 / (base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim))
+            self.register_buffer("inv_freq", inv_freq, persistent=False)
+
+        t = torch.arange(self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype)
+
+        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        emb = torch.cat((freqs, freqs), dim=-1)
+        self.register_buffer("cos_cached", emb.cos().to(dtype), persistent=False)
+        self.register_buffer("sin_cached", emb.sin().to(dtype), persistent=False)
+
+
+class MistralYaRNScaledRotaryEmbedding(torch.nn.Module):
+    """MistralRotaryEmbedding extended with YaRN. See: https://arxiv.org/abs/2309.00071"""
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, scale=1, original_max_position_embeddings=2048,
+                 extrapolation_factor=1, attn_factor=1, beta_fast=32, beta_slow=1, finetuned=False, device=None):
+        super().__init__()
+
+        self.dim = dim
+        self.max_position_embeddings = max_position_embeddings
+        self.base = base
+        self.scale = scale
+        self.original_max_position_embeddings = original_max_position_embeddings
+        self.extrapolation_factor = extrapolation_factor
+        self.attn_factor = attn_factor
+        self.beta_fast = beta_fast
+        self.beta_slow = beta_slow
+
+        self.yarn(device)
+
+        # Build here to make `torch.jit.trace` work.
+        self.max_seq_len_cached = max_position_embeddings
+        t = torch.arange(self.max_seq_len_cached, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
+        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        emb = torch.cat((freqs, freqs), dim=-1)
+        dtype = torch.get_default_dtype()
+
+        self.register_buffer("cos_cached", (emb.cos() * self.mscale).to(dtype), persistent=False)
+        self.register_buffer("sin_cached", (emb.sin() * self.mscale).to(dtype), persistent=False)
+
+    def forward(self, x, seq_len=None):
+        # x: [bs, num_attention_heads, seq_len, head_size]
+        # This `if` block is unlikely to be run after we build sin/cos in `__init__`. Keep the logic here just in case.
+        if seq_len > self.max_seq_len_cached:
+            self.max_seq_len_cached = seq_len
+
+            t = torch.arange(self.max_seq_len_cached, device=x.device, dtype=self.inv_freq.dtype)
+            freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+            # Different from paper, but it uses a different permutation in order to obtain the same calculation
+            emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
+
+            self.register_buffer("cos_cached", (emb.cos() * self.mscale).to(x.dtype), persistent=False)
+            self.register_buffer("sin_cached", (emb.sin() * self.mscale).to(x.dtype), persistent=False)
+        return (
+            self.cos_cached[:seq_len].to(dtype=x.dtype),
+            self.sin_cached[:seq_len].to(dtype=x.dtype),
+        )
+
+    def yarn(self, device):
+        pos_freqs = self.base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim)
+        inv_freq_extrapolation = 1.0 / pos_freqs
+        inv_freq_interpolation = 1.0 / (self.scale * pos_freqs)
+
+        low, high = _yarn_find_correction_range(self.beta_fast, self.beta_slow, self.dim, self.base, self.original_max_position_embeddings)
+        inv_freq_mask = (1 - _yarn_linear_ramp_mask(low, high, self.dim // 2).float().to(device)) * self.extrapolation_factor # Get n-d rotational scaling corrected for extrapolation
+        inv_freq = inv_freq_interpolation * (1 - inv_freq_mask) + inv_freq_extrapolation * inv_freq_mask
+
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
+        self.mscale = float(_yarn_get_mscale(self.scale) * self.attn_factor) # Get n-d magnitude scaling corrected for interpolation
+
+
+class MistralDynamicYaRNScaledRotaryEmbedding(torch.nn.Module):
+    """MistralRotaryEmbedding extended with Dynamic YaRN. See: https://arxiv.org/abs/2309.00071"""
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, original_max_position_embeddings=2048,
+                 extrapolation_factor=1, attn_factor=1, beta_fast=32, beta_slow=1, finetuned=False, device=None):
+        super().__init__()
+
+        self.dim = dim
+        self.max_position_embeddings = max_position_embeddings
+        self.base = base
+        self.original_max_position_embeddings = original_max_position_embeddings
+        self.extrapolation_factor = extrapolation_factor
+        self.attn_factor = attn_factor
+        self.beta_fast = beta_fast
+        self.beta_slow = beta_slow
+
+        if finetuned:
+            self.yarn(self.max_position_embeddings / self.original_max_position_embeddings, device)
+        else:
+            inv_freq = 1.0 / \
+                (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+            self.register_buffer("inv_freq", inv_freq, persistent=False)
+            self.mscale = 1
+
+        # Build here to make `torch.jit.trace` work.
+        self.max_seq_len_cached = max_position_embeddings
+        t = torch.arange(self.max_seq_len_cached, device=self.inv_freq.device, dtype=torch.float32)
+        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        emb = torch.cat((freqs, freqs), dim=-1)
+        dtype = torch.get_default_dtype()
+
+        self.register_buffer("cos_cached", (emb.cos() * self.mscale).to(dtype), persistent=False)
+        self.register_buffer("sin_cached", (emb.sin() * self.mscale).to(dtype), persistent=False)
+
+    def forward(self, x, seq_len=None):
+        # x: [bs, num_attention_heads, seq_len, head_size]
+        # This `if` block is unlikely to be run after we build sin/cos in `__init__`. Keep the logic here just in case.
+        if seq_len > self.max_seq_len_cached:
+            self.max_seq_len_cached = seq_len
+
+            self.yarn(seq_len / self.max_position_embeddings, x.device)
+
+            t = torch.arange(self.max_seq_len_cached, device=x.device, dtype=self.inv_freq.dtype)
+            freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+            # Different from paper, but it uses a different permutation in order to obtain the same calculation
+            emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
+
+            self.register_buffer("cos_cached", (emb.cos() * self.mscale).to(x.dtype), persistent=False)
+            self.register_buffer("sin_cached", (emb.sin() * self.mscale).to(x.dtype), persistent=False)
+        return (
+            self.cos_cached[:seq_len].to(dtype=x.dtype),
+            self.sin_cached[:seq_len].to(dtype=x.dtype),
+        )
+
+    def yarn(self, scale, device):
+        pos_freqs = self.base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim)
+        inv_freq_extrapolation = 1.0 / pos_freqs
+        inv_freq_interpolation = 1.0 / (scale * pos_freqs)
+
+        low, high = _yarn_find_correction_range(self.beta_fast, self.beta_slow, self.dim, self.base, self.original_max_position_embeddings)
+        inv_freq_mask = (1 - _yarn_linear_ramp_mask(low, high, self.dim // 2).float().to(device)) * self.extrapolation_factor # Get n-d rotational scaling corrected for extrapolation
+        inv_freq = inv_freq_interpolation * (1 - inv_freq_mask) + inv_freq_extrapolation * inv_freq_mask
+
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
+        self.mscale = float(_yarn_get_mscale(scale) * self.attn_factor) # Get n-d magnitude scaling corrected for interpolation
 
 # Copied from transformers.models.llama.modeling_llama.rotate_half
 def rotate_half(x):
@@ -234,14 +445,37 @@ class MistralAttention(nn.Module):
         self.v_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
         self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
 
-        self.rotary_emb = MistralRotaryEmbedding(
-            self.head_dim,
-            max_position_embeddings=self.max_position_embeddings,
-            base=self.rope_theta,
-        )
+        self._init_rope()
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+    
+    def _init_rope(self):
+        if self.config.rope_scaling is None:
+            self.rotary_emb = MistralRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings)
+        else:
+            scaling_type = self.config.rope_scaling["type"]
+            scaling_factor = self.config.rope_scaling["factor"]
+            if scaling_type == "linear":
+                self.rotary_emb = MistralLinearScalingRotaryEmbedding(
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
+                )
+            elif scaling_type == "dynamic":
+                self.rotary_emb = MistralDynamicNTKScalingRotaryEmbedding(
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
+                )
+            elif scaling_type == "yarn":
+                original_max_position_embeddings = self.config.rope_scaling["original_max_position_embeddings"]
+                self.rotary_emb = MistralYaRNScaledRotaryEmbedding(
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scale=scaling_factor, original_max_position_embeddings=original_max_position_embeddings
+                )
+            elif scaling_type == "dynamic-yarn":
+                original_max_position_embeddings = self.config.rope_scaling["original_max_position_embeddings"]
+                self.rotary_emb = MistralDynamicYaRNScaledRotaryEmbedding(
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, original_max_position_embeddings=original_max_position_embeddings
+                )
+            else:
+                raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
 
     def forward(
         self,
@@ -356,7 +590,7 @@ class MistralFlashAttention2(MistralAttention):
 
         use_sliding_windows = (
             _flash_supports_window_size
-            and hasattr(self.config, "sliding_window") is not None
+            and hasattr(self.config, "sliding_window")
             and kv_seq_len > self.config.sliding_window
         )
 
@@ -790,13 +1024,21 @@ class MistralModel(MistralPreTrainedModel):
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
         if input_shape[-1] > 1:
-            combined_attention_mask = _make_sliding_window_causal_mask(
-                input_shape,
-                inputs_embeds.dtype,
-                device=inputs_embeds.device,
-                past_key_values_length=past_key_values_length,
-                sliding_window=sliding_window,
-            )
+            if sliding_window is not None:
+                combined_attention_mask = _make_sliding_window_causal_mask(
+                    input_shape,
+                    inputs_embeds.dtype,
+                    device=inputs_embeds.device,
+                    past_key_values_length=past_key_values_length,
+                    sliding_window=sliding_window,
+                )
+            else:
+                combined_attention_mask = _make_causal_mask(
+                    input_shape,
+                    inputs_embeds.dtype,
+                    device=inputs_embeds.device,
+                    past_key_values_length=past_key_values_length,
+                )
 
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
@@ -887,7 +1129,7 @@ class MistralModel(MistralPreTrainedModel):
             (batch_size, seq_length),
             inputs_embeds,
             past_key_values_length,
-            sliding_window=self.config.sliding_window,
+            sliding_window=self.config.sliding_window if hasattr(self.config, "sliding_window") else None,
         )
 
         hidden_states = inputs_embeds

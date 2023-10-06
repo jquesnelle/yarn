@@ -78,6 +78,10 @@ class MistralConfig(PretrainedConfig):
             The id of the "end-of-sequence" token.
         tie_word_embeddings (`bool`, *optional*, defaults to `False`):
             Whether the model's input and output word embeddings should be tied.
+        rope_scaling (`Dict`, *optional*):
+            Dictionary containing the scaling configuration for the RoPE embeddings. Currently supports three scaling
+            strategies: linear and dynamic. Their scaling factor must be an float greater than 1. The expected format
+            is `{"type": strategy name, "factor": scaling factor}`.
         rope_theta (`float`, *optional*, defaults to 10000.0):
             The base period of the RoPE embeddings.
         sliding_window (`int`, *optional*, defaults to 4096):
@@ -117,6 +121,7 @@ class MistralConfig(PretrainedConfig):
         bos_token_id=1,
         eos_token_id=2,
         tie_word_embeddings=False,
+        rope_scaling=None,
         rope_theta=10000.0,
         sliding_window=4096,
         **kwargs,
@@ -138,6 +143,8 @@ class MistralConfig(PretrainedConfig):
         self.initializer_range = initializer_range
         self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
+        self.rope_scaling = rope_scaling
+        self._rope_scaling_validation()
         self.rope_theta = rope_theta
 
         super().__init__(
@@ -147,3 +154,28 @@ class MistralConfig(PretrainedConfig):
             tie_word_embeddings=tie_word_embeddings,
             **kwargs,
         )
+
+    def _rope_scaling_validation(self):
+        """
+        Validate the `rope_scaling` configuration.
+        """
+        if self.rope_scaling is None:
+            return
+
+        if not isinstance(self.rope_scaling, dict):
+            raise ValueError(
+                "`rope_scaling` must be a dictionary, "
+                f"got {self.rope_scaling}"
+            )
+        rope_scaling_type = self.rope_scaling.get("type", None)
+        rope_scaling_factor = self.rope_scaling.get("factor", None)
+        if rope_scaling_type is None or rope_scaling_type not in ["linear", "dynamic", "yarn", "dynamic-yarn"]:
+            raise ValueError(
+                f"`rope_scaling`'s name field must be one of ['linear', 'dynamic', 'yarn', 'dynamic-yarn'], got {rope_scaling_type}"
+            )
+        if rope_scaling_factor is None or not isinstance(rope_scaling_factor, float) or rope_scaling_factor <= 1.0:
+            raise ValueError(f"`rope_scaling`'s factor field must be an float > 1, got {rope_scaling_factor}")
+        if rope_scaling_type == "yarn" or rope_scaling_type == "dynamic-yarn":
+            original_max_position_embeddings = self.rope_scaling.get("original_max_position_embeddings", None)
+            if original_max_position_embeddings is None or not isinstance(original_max_position_embeddings, int):
+                raise ValueError(f"`rope_scaling.original_max_position_embeddings` must be set to an int when using yarn, and dynamic-yarn")

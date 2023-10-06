@@ -33,7 +33,7 @@ def load_model(model, args):
         config.use_cache = False
     else:
         config.use_cache = True
-    if args.custom_model or args.custom_model_together:
+    if args.custom_model or args.custom_model_together or args.custom_model_mistral:
         if args.linear:
             config.rope_scaling = {
                 "type": "linear",
@@ -58,12 +58,10 @@ def load_model(model, args):
         elif args.dynamic_yarn:
             config.rope_scaling = {
                 "type": "dynamic-yarn",
-                "factor": args.factor if args.factor else config.rope_scaling.get("factor", 1.0),
+                "factor": args.factor if args.factor else (config.rope_scaling.get("factor", 1.0) if config.rope_scaling is not None else 1.0),
                 "original_max_position_embeddings": args.original_max_position_embeddings if args.original_max_position_embeddings else config.rope_scaling["original_max_position_embeddings"],
-                "finetuned": args.finetuned if args.finetuned else config.rope_scaling.get("finetuned", False)
+                "finetuned": args.finetuned if args.finetuned else (config.rope_scaling.get("finetuned", False) if config.rope_scaling is not None else False)
             }
-    if args.flash_attention:
-        config.use_flash_attention_2 = args.flash_attention
     else:
         if args.rerope:
             assert not args.custom_model and not args.custom_model_together
@@ -93,7 +91,8 @@ def load_model(model, args):
         device_map="auto",
         trust_remote_code=not args.custom_model,
         config=config,
-        quantization_config=quantization_config
+        quantization_config=quantization_config,
+        use_flash_attention_2=args.flash_attention,
     )
 
     return loaded

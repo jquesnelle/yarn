@@ -64,7 +64,6 @@ def compute_perplexity(
             with torch.no_grad():
                 outputs = model(input_ids, labels=target_ids)
                 neg_log_likelihood = outputs.loss
-                print(neg_log_likelihood)
             
             if aggressive_memory:
                 outputs = None
