@@ -14,6 +14,11 @@ def load_model(model, args):
         from scaled_rope.configuration_llama import LlamaConfig
         model_cls = LlamaForCausalLM
         config_cls = LlamaConfig
+    elif args.custom_model_mistral:
+        from scaled_rope.modeling_mistral_yarn import MistralForCausalLM
+        from scaled_rope.configuration_mistral import MistralConfig
+        model_cls = MistralForCausalLM
+        config_cls = MistralConfig
     else:
         model_cls = AutoModelForCausalLM
         config_cls = AutoConfig
@@ -57,8 +62,8 @@ def load_model(model, args):
                 "original_max_position_embeddings": args.original_max_position_embeddings if args.original_max_position_embeddings else config.rope_scaling["original_max_position_embeddings"],
                 "finetuned": args.finetuned if args.finetuned else config.rope_scaling.get("finetuned", False)
             }
-        if args.flash_attention:
-            config.use_flash_attention = args.flash_attention
+    if args.flash_attention:
+        config.use_flash_attention_2 = args.flash_attention
     else:
         if args.rerope:
             assert not args.custom_model and not args.custom_model_together
@@ -114,13 +119,14 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--original-max-position-embeddings", type=int)
     parser.add_argument("--custom-model", action="store_true")
     parser.add_argument("--custom-model-together", action="store_true")
+    parser.add_argument("--custom-model-mistral", action="store_true")
     parser.add_argument("--flash-attention", action="store_true")
     parser.add_argument("--no-use-cache", action="store_true")
     return parser
 
 
 def apply_patches(model, args):
-    if not args.custom_model and not args.custom_model_together:
+    if not args.custom_model and not args.custom_model_together and not args.custom_model_mistral:
         if "GPTNeoXForCausalLM" in model.config.architectures:
             assert args.gpt_neox_max_length is not None
             patch_gptneox_for_longer_sequences(model, args.gpt_neox_max_length)
@@ -189,7 +195,8 @@ def apply_patches(model, args):
             if "LlamaForCausalLM" in model.config.architectures:
                 training_length = args.original_max_position_embeddings if args.original_max_position_embeddings else 4096
                 window = args.rerope
-                patch_llama_for_rerope(model, training_length=training_length, window=window)
+                patch_llama_for_rerope(
+                    model, training_length=training_length, window=window)
             else:
                 raise RuntimeError(
                     f"Unsupported architecture {model.config.architectures} for YaRN")
