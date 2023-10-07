@@ -147,7 +147,7 @@ def _yarn_linear_ramp_mask(min, max, dim):
 def _yarn_get_mscale(scale=1):
     if scale <= 1:
         return 1.0
-    return 0.1 * math.log(scale) + 1.0
+    return 0.07 * math.log(scale) + 1.0
 
 # Copied from transformers.models.llama.modeling_llama.LlamaRMSNorm with Llama->Mistral
 class MistralRMSNorm(nn.Module):
@@ -251,7 +251,7 @@ class MistralDynamicNTKScalingRotaryEmbedding(MistralRotaryEmbedding):
 class MistralYaRNScaledRotaryEmbedding(torch.nn.Module):
     """MistralRotaryEmbedding extended with YaRN. See: https://arxiv.org/abs/2309.00071"""
     def __init__(self, dim, max_position_embeddings=2048, base=10000, scale=1, original_max_position_embeddings=2048,
-                 extrapolation_factor=1, attn_factor=1, beta_fast=32, beta_slow=1, finetuned=False, device=None):
+                 extrapolation_factor=1, attn_factor=1, beta_fast=128, beta_slow=2, finetuned=False, device=None):
         super().__init__()
 
         self.dim = dim
@@ -311,7 +311,7 @@ class MistralYaRNScaledRotaryEmbedding(torch.nn.Module):
 class MistralDynamicYaRNScaledRotaryEmbedding(torch.nn.Module):
     """MistralRotaryEmbedding extended with Dynamic YaRN. See: https://arxiv.org/abs/2309.00071"""
     def __init__(self, dim, max_position_embeddings=2048, base=10000, original_max_position_embeddings=2048,
-                 extrapolation_factor=1, attn_factor=1, beta_fast=32, beta_slow=1, finetuned=False, device=None):
+                 extrapolation_factor=1, attn_factor=1, beta_fast=128, beta_slow=2, finetuned=False, device=None):
         super().__init__()
 
         self.dim = dim
