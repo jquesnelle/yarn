@@ -203,7 +203,7 @@ if __name__ == "__main__":
     args.add_argument("--model", type=str,
                       default="NousResearch/Llama-2-7b-hf")
     args.add_argument("--scaling-factor", type=float, default=16.0)
-    args.add_argument("--scaling-type", type=str)
+    args.add_argument("--scaling-type", type=str, default="yarn")
     args.add_argument("--rope-theta", type=float, default=10000.0)
     args.add_argument("--truncate", type=int)
     args.add_argument("--dataset", type=str,
