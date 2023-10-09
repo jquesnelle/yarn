@@ -92,13 +92,13 @@ def main(args):
         model.print_trainable_parameters()
 
 
-    if args.no_deepspeed:
-        optim = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
-        scheduler = get_linear_schedule_with_warmup(
-            optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
-    else:
+    if args.deepspeed:
         optim = DummyOptim(model.parameters(), lr=args.learning_rate)
         scheduler = DummyScheduler(
+            optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
+    else:
+        optim = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
+        scheduler = get_linear_schedule_with_warmup(
             optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
     model, optim, train_loader, scheduler = accelerator.prepare(
         model, optim, train_loader, scheduler
@@ -212,5 +212,5 @@ if __name__ == "__main__":
     args.add_argument("--truncate", type=int)
     args.add_argument("--dataset", type=str,
                       default="emozilla/pg_books-tokenized-bos-eos-chunked-65536")
-    args.add_argument("--no-deepspeed", action="store_true")
+    args.add_argument("--deepspeed", action="store_true")
     main(args.parse_args())

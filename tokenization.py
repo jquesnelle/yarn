@@ -23,7 +23,7 @@ def main(args):
             dataset = dataset.train_test_split(train_size=float(splits[0]), seed=args.seed)["train"]
     else:
         to_concatenate = []
-        for i in range in (0, len(datasets)):
+        for i in range(0, len(datasets)):
             try:
                 loaded = load_from_disk(datasets[i])
             except:

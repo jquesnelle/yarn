@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# run `accelerate config` first. pass --deepspeed to finetune.py if using DeepSpeed
+
 accelerate launch finetune.py \
     --wandb yarn \
     --output-dir output/yarn-7b-64k \
