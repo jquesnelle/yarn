@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs, set_seed, DummyOptim, DummyScheduler
 from tqdm import tqdm
-from transformers import set_seed, default_data_collator
+from transformers import set_seed, default_data_collator, get_linear_schedule_with_warmup
 
 from scaled_rope.modeling_llama_together_yarn import LlamaForCausalLM
 from scaled_rope.configuration_llama import LlamaConfig
@@ -91,9 +91,15 @@ def main(args):
         model = get_peft_model(model, peft_config)
         model.print_trainable_parameters()
 
-    optim = DummyOptim(model.parameters(), lr=args.learning_rate)
-    scheduler = DummyScheduler(
-        optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
+
+    if args.no_deepspeed:
+        optim = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
+        scheduler = get_linear_schedule_with_warmup(
+            optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
+    else:
+        optim = DummyOptim(model.parameters(), lr=args.learning_rate)
+        scheduler = DummyScheduler(
+            optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
     model, optim, train_loader, scheduler = accelerator.prepare(
         model, optim, train_loader, scheduler
     )
@@ -202,4 +208,5 @@ if __name__ == "__main__":
     args.add_argument("--truncate", type=int)
     args.add_argument("--dataset", type=str,
                       default="emozilla/pg_books-tokenized-bos-eos-chunked-65536")
+    args.add_argument("--no-deepspeed", action="store_true")
     main(args.parse_args())
