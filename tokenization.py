@@ -1,4 +1,5 @@
 from itertools import chain
+from functools import reduce
 import multiprocessing
 import argparse
 from typing import List
@@ -10,16 +11,26 @@ def main(args):
         raise RuntimeError("No datasets provided")
     datasets = args.dataset[0]
 
+    splits = [x.split(",")[1] if len(x.split(",")) == 2 else "" for x in datasets]
+    datasets = [x.split(",")[0] for x in datasets]
+
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     if args.json:
         dataset = load_dataset("json", data_files=datasets)
+        if reduce(lambda x,y: x or len(y) > 0, splits, False):
+            if len(datasets) > 1:
+                raise RuntimeError("Can only use splitting on json datasets if there is exactly one input file")
+            dataset = dataset["train"].train_test_split(train_size=float(splits[0]), seed=args.seed)
     else:
         to_concatenate = []
-        for x in datasets:
+        for i in range in (0, len(datasets)):
             try:
-                to_concatenate.append(load_from_disk(x))
+                loaded = load_from_disk(datasets[i])
             except:
-                to_concatenate.append(load_dataset(x))
+                loaded = load_dataset([i])
+            if len(splits[i]) > 0:
+                loaded = loaded["train"].train_test_split(train_size=float(splits[i]), seed=args.seed)
+            to_concatenate.append(loaded)
         dataset = concatenate_datasets(to_concatenate)
 
     dataset = dataset.remove_columns([x for x in dataset[args.split].column_names if x not in [args.feature]])
@@ -70,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--split", type=str, default="train")
     parser.add_argument("--output", type=str)
     parser.add_argument("--push-to-hub", type=str)
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--num-proc", type=int,
                         default=multiprocessing.cpu_count())

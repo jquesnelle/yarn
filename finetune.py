@@ -140,12 +140,14 @@ def main(args):
 
     model.train()
     for step, batch in enumerate(train_loader):
+        loss_log = None
         with accelerator.accumulate(model):
             loss = model(**batch).loss
             accelerator.backward(loss)
 
             if accelerator.sync_gradients:
-                accelerator.log({"loss": loss.item()}, step=completed_steps)
+                loss_log = {"loss": loss.item()}
+                accelerator.log(loss_log, step=completed_steps)
                 if isinstance(args.grad_norm, float):
                     accelerator.clip_grad_norm_(
                         model.parameters(), args.grad_norm)
@@ -156,6 +158,8 @@ def main(args):
 
         if accelerator.sync_gradients:
             progress_bar.update(1)
+            if loss_log is not None:
+                progress_bar.set_postfix(loss_log)
             completed_steps += 1
 
             if isinstance(args.checkpointing_steps, int) and completed_steps > 0:
