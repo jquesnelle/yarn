@@ -16,24 +16,24 @@ def main(args):
 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     if args.json:
-        dataset = load_dataset("json", data_files=datasets)
+        dataset = load_dataset("json", data_files=datasets)[args.split]
         if reduce(lambda x,y: x or len(y) > 0, splits, False):
             if len(datasets) > 1:
                 raise RuntimeError("Can only use splitting on json datasets if there is exactly one input file")
-            dataset = dataset["train"].train_test_split(train_size=float(splits[0]), seed=args.seed)
+            dataset = dataset.train_test_split(train_size=float(splits[0]), seed=args.seed)["train"]
     else:
         to_concatenate = []
         for i in range in (0, len(datasets)):
             try:
                 loaded = load_from_disk(datasets[i])
             except:
-                loaded = load_dataset([i])
+                loaded = load_dataset([i])[args.split]
             if len(splits[i]) > 0:
-                loaded = loaded["train"].train_test_split(train_size=float(splits[i]), seed=args.seed)
+                loaded = loaded.train_test_split(train_size=float(splits[i]), seed=args.seed)["train"]
             to_concatenate.append(loaded)
         dataset = concatenate_datasets(to_concatenate)
 
-    dataset = dataset.remove_columns([x for x in dataset[args.split].column_names if x not in [args.feature]])
+    dataset = dataset.remove_columns([x for x in dataset.column_names if x not in [args.feature]])
 
     tokenized_dataset = dataset.map(
         lambda example: tokenizer(
