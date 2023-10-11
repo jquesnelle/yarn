@@ -46,7 +46,7 @@ def main(args):
     )
     accelerator.print(f"Total GPUS: {accelerator.num_processes}")
 
-    if args.architecure == "llama":
+    if args.architecture == "llama":
         from scaled_rope.modeling_llama_together_yarn import LlamaForCausalLM
         from scaled_rope.configuration_llama import LlamaConfig
         config_cls = LlamaConfig
