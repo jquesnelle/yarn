@@ -1,18 +1,14 @@
-import torch
-from datasets import load_dataset, load_from_disk
 import argparse
+import copy
+import torch
 import os
-import wandb
+from datasets import load_dataset, load_from_disk
 from datetime import timedelta
 from torch.utils.data import DataLoader
 from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs, set_seed, DummyOptim, DummyScheduler
 from tqdm import tqdm
 from transformers import set_seed, default_data_collator, get_linear_schedule_with_warmup
-
-from scaled_rope.modeling_llama_together_yarn import LlamaForCausalLM
-from scaled_rope.configuration_llama import LlamaConfig
-
 
 def find_all_linear_names(model):
     lora_module_names = set()
@@ -33,6 +29,7 @@ def main(args):
         os.makedirs(args.output_dir, exist_ok=True)
 
     if args.wandb:
+        import wandb
         wandb.login()
 
     set_seed(args.seed)
@@ -49,16 +46,30 @@ def main(args):
     )
     accelerator.print(f"Total GPUS: {accelerator.num_processes}")
 
-    config = LlamaConfig.from_pretrained(args.model)
+    if args.architecure == "llama":
+        from scaled_rope.modeling_llama_together_yarn import LlamaForCausalLM
+        from scaled_rope.configuration_llama import LlamaConfig
+        config_cls = LlamaConfig
+        model_cls = LlamaForCausalLM
+        original_max_position_embeddings = 4096
+    elif args.architecture == "mistral":
+        from scaled_rope.modeling_mistral_yarn import MistralForCausalLM
+        from scaled_rope.configuration_mistral import MistralConfig
+        config_cls = MistralConfig
+        model_cls = MistralForCausalLM
+        original_max_position_embeddings = 8192
+
+
+    config = config_cls.from_pretrained(args.model)
     config.rope_scaling = {
         "type": args.scaling_type,
         "factor": args.scaling_factor,
-        "original_max_position_embeddings": 4096
+        "original_max_position_embeddings": original_max_position_embeddings
     }
     config.rope_theta = args.rope_theta
-    config.max_position_embeddings = int(args.scaling_factor * 4096)
+    config.max_position_embeddings = int(args.scaling_factor * original_max_position_embeddings)
 
-    model = LlamaForCausalLM.from_pretrained(
+    model = model_cls.from_pretrained(
         args.model,
         torch_dtype=torch.bfloat16,
         config=config
@@ -68,13 +79,32 @@ def main(args):
         train_dataset = load_dataset(args.dataset, split="train")
     except:
         train_dataset = load_from_disk(args.dataset)
+
+    if "input_ids" not in train_dataset.column_names:
+        raise RuntimeError("Dataset must include an `input_ids` feature")
+    if "labels" not in train_dataset.column_names:
+        def add_labels(sample):
+            sample["labels"] = copy.deepcopy(sample["input_ids"])
+            return sample
+        train_dataset = train_dataset.map(
+            add_labels, desc="Adding labels", num_proc=args.num_proc)
+    if "attention_mask" not in train_dataset.column_names:
+        def add_attention_mask(sample):
+            sample["attention_mask"] = torch.ones(
+                len(sample["input_ids"]), dtype=torch.int8)
+            return sample
+        train_dataset = train_dataset.map(
+            add_attention_mask, desc="Adding attention mask", num_proc=args.num_proc)
+
     if args.truncate:
         def truncate(sample):
             sample["input_ids"] = sample["input_ids"][0:args.truncate]
             sample["labels"] = sample["labels"][0:args.truncate]
             sample["attention_mask"] = sample["attention_mask"][0:args.truncate]
             return sample
-        train_dataset = train_dataset.map(truncate, desc="Truncating", num_proc=32)
+        train_dataset = train_dataset.map(
+            truncate, desc="Truncating", num_proc=args.num_proc)
+
     train_loader = DataLoader(
         train_dataset,
         collate_fn=default_data_collator,
@@ -90,7 +120,6 @@ def main(args):
                                  r=16, lora_alpha=64, lora_dropout=0.05, target_modules=target_modules)
         model = get_peft_model(model, peft_config)
         model.print_trainable_parameters()
-
 
     if args.deepspeed:
         optim = DummyOptim(model.parameters(), lr=args.learning_rate)
@@ -213,4 +242,6 @@ if __name__ == "__main__":
     args.add_argument("--dataset", type=str,
                       default="emozilla/pg_books-tokenized-bos-eos-chunked-65536")
     args.add_argument("--deepspeed", action="store_true")
+    args.add_argument("--num-proc", type=int, default=32)
+    args.add_argument("--architecture", type=str, choices=["llama", "mistral"], default="llama")
     main(args.parse_args())
