@@ -59,7 +59,6 @@ def main(args):
         model_cls = MistralForCausalLM
         original_max_position_embeddings = 8192
 
-
     config = config_cls.from_pretrained(args.model)
     config.rope_scaling = {
         "type": args.scaling_type,
@@ -67,12 +66,14 @@ def main(args):
         "original_max_position_embeddings": original_max_position_embeddings
     }
     config.rope_theta = args.rope_theta
-    config.max_position_embeddings = int(args.scaling_factor * original_max_position_embeddings)
+    config.max_position_embeddings = int(args.scaling_factor * original_max_position_embeddings) \
+        if not args.max_position_embeddings else args.max_position_embeddings
 
     model = model_cls.from_pretrained(
         args.model,
         torch_dtype=torch.bfloat16,
-        config=config
+        config=config,
+        use_flash_attention_2=True
     )
 
     try:
@@ -125,13 +126,15 @@ def main(args):
         optim = DummyOptim(model.parameters(), lr=args.learning_rate)
         scheduler = DummyScheduler(
             optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
+        model, optim, train_loader, scheduler = accelerator.prepare(
+            model, optim, train_loader, scheduler
+        )
     else:
+        model = accelerator.prepare(model)
         optim = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
         scheduler = get_linear_schedule_with_warmup(
             optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
-    model, optim, train_loader, scheduler = accelerator.prepare(
-        model, optim, train_loader, scheduler
-    )
+        optim, train_loader, scheduler = accelerator.prepare(optim, train_loader, scheduler)
 
     if not args.lora:
         model.gradient_checkpointing_enable()
@@ -223,7 +226,7 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--batch-size", type=int, default=1)
     args.add_argument("--gradient-accumulate-every", type=int, default=8)
-    args.add_argument("--resume-from-checkpoint", action="store_true")
+    args.add_argument("--resume-from-checkpoint", type=str)
     args.add_argument("--checkpointing-steps", type=int)
     args.add_argument("--output-dir", type=str, required=True)
     args.add_argument("--wandb", type=str)
@@ -244,4 +247,5 @@ if __name__ == "__main__":
     args.add_argument("--deepspeed", action="store_true")
     args.add_argument("--num-proc", type=int, default=32)
     args.add_argument("--architecture", type=str, choices=["llama", "mistral"], default="llama")
+    args.add_argument("--max-position-embeddings", type=int)
     main(args.parse_args())
