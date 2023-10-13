@@ -10,6 +10,7 @@ from accelerate.utils import InitProcessGroupKwargs, set_seed, DummyOptim, Dummy
 from tqdm import tqdm
 from transformers import set_seed, default_data_collator, get_linear_schedule_with_warmup
 
+
 def find_all_linear_names(model):
     lora_module_names = set()
     for name, module in model.named_modules():
@@ -113,6 +114,9 @@ def main(args):
         batch_size=args.batch_size
     )
 
+    sliding_window_attention_schedule = [int(x) for x in args.sliding_window_attention_schedule.split(",")] \
+        if args.sliding_window_attention_schedule else None
+
     if args.lora:
         from peft import get_peft_model, LoraConfig, TaskType
         target_modules = find_all_linear_names(model)
@@ -134,7 +138,8 @@ def main(args):
         optim = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
         scheduler = get_linear_schedule_with_warmup(
             optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
-        optim, train_loader, scheduler = accelerator.prepare(optim, train_loader, scheduler)
+        optim, train_loader, scheduler = accelerator.prepare(
+            optim, train_loader, scheduler)
 
     if not args.lora:
         model.gradient_checkpointing_enable()
@@ -172,6 +177,10 @@ def main(args):
 
     model.train()
     for step, batch in enumerate(train_loader):
+        if sliding_window_attention_schedule is not None:
+            model.config.sliding_window = sliding_window_attention_schedule[completed_steps % len(
+                sliding_window_attention_schedule)]
+
         loss_log = None
         with accelerator.accumulate(model):
             loss = model(**batch).loss
@@ -246,6 +255,8 @@ if __name__ == "__main__":
                       default="emozilla/pg_books-tokenized-bos-eos-chunked-65536")
     args.add_argument("--deepspeed", action="store_true")
     args.add_argument("--num-proc", type=int, default=32)
-    args.add_argument("--architecture", type=str, choices=["llama", "mistral"], default="llama")
+    args.add_argument("--architecture", type=str,
+                      choices=["llama", "mistral"], default="llama")
     args.add_argument("--max-position-embeddings", type=int)
+    args.add_argument("--sliding-window-attention-schedule", type=str)
     main(args.parse_args())
