@@ -33,8 +33,8 @@ def load_model(model, args):
         config.use_cache = False
     else:
         config.use_cache = True
-    if args.sliding_window:
-        config.sliding_window = args.sliding_window
+    if args.sliding_window_attention:
+        config.sliding_window = args.sliding_window_attention
     if args.custom_model or args.custom_model_together or args.custom_model_mistral:
         if args.linear:
             config.rope_scaling = {
@@ -118,7 +118,7 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--adapter", type=str)
     parser.add_argument("--max-position-embeddings", type=int)
     parser.add_argument("--original-max-position-embeddings", type=int)
-    parser.add_argument("--sliding-window", type=int)
+    parser.add_argument("--sliding-window-attention", type=int)
     parser.add_argument("--custom-model", action="store_true")
     parser.add_argument("--custom-model-together", action="store_true")
     parser.add_argument("--custom-model-mistral", action="store_true")
