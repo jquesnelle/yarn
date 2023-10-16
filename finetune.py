@@ -53,7 +53,7 @@ def main(args):
         config_cls = LlamaConfig
         model_cls = LlamaForCausalLM
         original_max_position_embeddings = 4096
-        use_flash_attention_2 = None # Custom model has FA 2
+        use_flash_attention_2 = None  # Custom model has FA 2
     elif args.architecture == "mistral":
         from scaled_rope.modeling_mistral_yarn import MistralForCausalLM
         from scaled_rope.configuration_mistral import MistralConfig
@@ -149,7 +149,7 @@ def main(args):
                 optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
         elif args.lr_schedule == "constant":
             scheduler = get_constant_schedule_with_warmup(
-                optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
+                optim, num_warmup_steps=args.warmup_steps)
         optim, train_loader, scheduler = accelerator.prepare(
             optim, train_loader, scheduler)
 
