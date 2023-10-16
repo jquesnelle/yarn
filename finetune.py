@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs, set_seed, DummyOptim, DummyScheduler
 from tqdm import tqdm
-from transformers import set_seed, default_data_collator, get_linear_schedule_with_warmup
+from transformers import set_seed, default_data_collator, get_linear_schedule_with_warmup, get_constant_schedule_with_warmup
 
 
 def find_all_linear_names(model):
@@ -136,40 +136,44 @@ def main(args):
     else:
         model = accelerator.prepare(model)
         optim = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
-        scheduler = get_linear_schedule_with_warmup(
-            optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
-        optim, train_loader, scheduler = accelerator.prepare(
+        if args.lr_schedule == "linear":
+            scheduler = get_linear_schedule_with_warmup(
+                optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
+        elif args.lr_schedule == "constant":
+            scheduler = get_constant_schedule_with_warmup(
+                optim, num_training_steps=args.max_train_steps, num_warmup_steps=args.warmup_steps)
+        optim, train_loader, scheduler=accelerator.prepare(
             optim, train_loader, scheduler)
 
     if not args.lora:
         model.gradient_checkpointing_enable()
 
     accelerator.register_for_checkpointing(scheduler)
-    total_batch_size = (
+    total_batch_size=(
         args.batch_size * accelerator.num_processes * args.gradient_accumulate_every
     )
 
     accelerator.print(f"Max train steps: {args.max_train_steps}")
     accelerator.print(f"Total batch size: {total_batch_size}")
-    progress_bar = tqdm(
+    progress_bar=tqdm(
         range(args.max_train_steps), disable=not accelerator.is_local_main_process
     )
-    completed_steps = 0
+    completed_steps=0
 
     if args.resume_from_checkpoint:
         if args.resume_from_checkpoint is not None or args.resume_from_checkpoint != "":
             accelerator.print(
                 f"Resuming from checkpoint {args.resume_from_checkpoint}")
             accelerator.load_state(args.resume_from_checkpoint)
-            path = os.path.basename(args.resume_from_checkpoint)
-        training_difference = os.path.splitext(path)[0]
+            path=os.path.basename(args.resume_from_checkpoint)
+        training_difference=os.path.splitext(path)[0]
 
-        resume_step = (
+        resume_step=(
             int(training_difference.replace("step_", ""))
         )
 
     if args.resume_from_checkpoint and resume_step is not None:
-        train_loader = accelerator.skip_first_batches(
+        train_loader=accelerator.skip_first_batches(
             train_loader, resume_step)
         completed_steps += resume_step
         progress_bar.update(resume_step)
@@ -178,16 +182,16 @@ def main(args):
     model.train()
     for step, batch in enumerate(train_loader):
         if sliding_window_attention_schedule is not None:
-            model.config.sliding_window = sliding_window_attention_schedule[completed_steps % len(
+            model.config.sliding_window=sliding_window_attention_schedule[completed_steps % len(
                 sliding_window_attention_schedule)]
 
-        loss_log = None
+        loss_log=None
         with accelerator.accumulate(model):
-            loss = model(**batch).loss
+            loss=model(**batch).loss
             accelerator.backward(loss)
 
             if accelerator.sync_gradients:
-                loss_log = {"loss": loss.item()}
+                loss_log={"loss": loss.item()}
                 accelerator.log(loss_log, step=completed_steps)
                 if isinstance(args.grad_norm, float):
                     accelerator.clip_grad_norm_(
@@ -205,9 +209,9 @@ def main(args):
 
             if isinstance(args.checkpointing_steps, int) and completed_steps > 0:
                 if completed_steps % args.checkpointing_steps == 0:
-                    output_dir = f"step_{completed_steps}"
+                    output_dir=f"step_{completed_steps}"
                     if args.output_dir is not None:
-                        output_dir = os.path.join(args.output_dir, output_dir)
+                        output_dir=os.path.join(args.output_dir, output_dir)
                     accelerator.save_state(output_dir)
 
         if completed_steps >= args.max_train_steps:
@@ -219,7 +223,7 @@ def main(args):
     accelerator.print(f"Saving model to {args.output_dir}")
     if args.output_dir is not None:
         accelerator.wait_for_everyone()
-        unwrapped_model = accelerator.unwrap_model(model)
+        unwrapped_model=accelerator.unwrap_model(model)
 
         unwrapped_model.save_pretrained(
             f"{args.output_dir}",
@@ -232,7 +236,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = argparse.ArgumentParser()
+    args=argparse.ArgumentParser()
     args.add_argument("--batch-size", type=int, default=1)
     args.add_argument("--gradient-accumulate-every", type=int, default=8)
     args.add_argument("--resume-from-checkpoint", type=str)
@@ -259,4 +263,6 @@ if __name__ == "__main__":
                       choices=["llama", "mistral"], default="llama")
     args.add_argument("--max-position-embeddings", type=int)
     args.add_argument("--sliding-window-attention-schedule", type=str)
+    args.add_argument("--lr-schedule", type=str,
+                      choices=["linear", "constant"], default="linear")
     main(args.parse_args())
