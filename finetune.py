@@ -70,6 +70,13 @@ def main(args):
     config.max_position_embeddings = int(args.scaling_factor * original_max_position_embeddings) \
         if not args.max_position_embeddings else args.max_position_embeddings
 
+    sliding_window_attention_schedule = [int(x) for x in args.sliding_window_attention_schedule.split(",")] \
+        if args.sliding_window_attention_schedule else None
+    if sliding_window_attention_schedule is not None and len(sliding_window_attention_schedule) == 1:
+        config.sliding_window = sliding_window_attention_schedule[0]
+        accelerator.print(
+            f"Sliding attention window set to {config.sliding_window}")
+
     model = model_cls.from_pretrained(
         args.model,
         torch_dtype=torch.bfloat16,
@@ -113,13 +120,6 @@ def main(args):
         shuffle=True,
         batch_size=args.batch_size
     )
-
-    sliding_window_attention_schedule = [int(x) for x in args.sliding_window_attention_schedule.split(",")] \
-        if args.sliding_window_attention_schedule else None
-    if sliding_window_attention_schedule is not None and len(sliding_window_attention_schedule) == 1:
-        config.sliding_window = sliding_window_attention_schedule[0]
-        accelerator.print(
-            f"Sliding attention window set to {config.sliding_window}")
 
     if args.lora:
         from peft import get_peft_model, LoraConfig, TaskType
