@@ -48,19 +48,17 @@ def main(args):
     accelerator.print(f"Total GPUS: {accelerator.num_processes}")
 
     if args.architecture == "llama":
-        from scaled_rope.modeling_llama_together_yarn import LlamaForCausalLM
+        from scaled_rope.modeling_llama_yarn import LlamaForCausalLM
         from scaled_rope.configuration_llama import LlamaConfig
         config_cls = LlamaConfig
         model_cls = LlamaForCausalLM
         original_max_position_embeddings = 4096
-        use_flash_attention_2 = None  # Custom model has FA 2
     elif args.architecture == "mistral":
         from scaled_rope.modeling_mistral_yarn import MistralForCausalLM
         from scaled_rope.configuration_mistral import MistralConfig
         config_cls = MistralConfig
         model_cls = MistralForCausalLM
         original_max_position_embeddings = 8192
-        use_flash_attention_2 = True
 
     config = config_cls.from_pretrained(args.model)
     config.rope_scaling = {
@@ -83,7 +81,7 @@ def main(args):
         args.model,
         torch_dtype=torch.bfloat16,
         config=config,
-        use_flash_attention_2=use_flash_attention_2
+        use_flash_attention_2=True
     )
 
     try:
