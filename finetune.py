@@ -2,7 +2,7 @@ import argparse
 import copy
 import torch
 import os
-from datasets import load_dataset, load_from_disk
+from datasets import load_dataset, load_from_disk, DatasetDict
 from datetime import timedelta
 from torch.utils.data import DataLoader
 from accelerate import Accelerator
@@ -85,9 +85,11 @@ def main(args):
     )
 
     try:
-        train_dataset = load_dataset(args.dataset, split="train")
+        train_dataset = load_dataset(args.dataset)
     except:
         train_dataset = load_from_disk(args.dataset)
+    if isinstance(train_dataset, DatasetDict):
+        train_dataset = train_dataset["train"]
 
     if "input_ids" not in train_dataset.column_names:
         raise RuntimeError("Dataset must include an `input_ids` feature")
