@@ -245,8 +245,8 @@ class LlamaYaRNScaledRotaryEmbedding(torch.nn.Module):
         emb = torch.cat((freqs, freqs), dim=-1)
         dtype = torch.get_default_dtype()
 
-        self.register_buffer("cos_cached", (emb.cos() * self.mscale)[None, None, :, :].to(dtype), persistent=False)
-        self.register_buffer("sin_cached", (emb.sin() * self.mscale)[None, None, :, :].to(dtype), persistent=False)
+        self.register_buffer("cos_cached", (emb.cos() * self.mscale).to(dtype), persistent=False)
+        self.register_buffer("sin_cached", (emb.sin() * self.mscale).to(dtype), persistent=False)
 
     def forward(self, x, seq_len=None):
         # x: [bs, num_attention_heads, seq_len, head_size]
@@ -259,11 +259,11 @@ class LlamaYaRNScaledRotaryEmbedding(torch.nn.Module):
             # Different from paper, but it uses a different permutation in order to obtain the same calculation
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
 
-            self.register_buffer("cos_cached", (emb.cos() * self.mscale)[None, None, :, :].to(x.dtype), persistent=False)
-            self.register_buffer("sin_cached", (emb.sin() * self.mscale)[None, None, :, :].to(x.dtype), persistent=False)
+            self.register_buffer("cos_cached", (emb.cos() * self.mscale).to(x.dtype), persistent=False)
+            self.register_buffer("sin_cached", (emb.sin() * self.mscale).to(x.dtype), persistent=False)
         return (
-            self.cos_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
-            self.sin_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
+            self.cos_cached[:seq_len].to(dtype=x.dtype),
+            self.sin_cached[:seq_len].to(dtype=x.dtype),
         )
 
     def yarn(self, device):
@@ -308,8 +308,8 @@ class LlamaDynamicYaRNScaledRotaryEmbedding(torch.nn.Module):
         emb = torch.cat((freqs, freqs), dim=-1)
         dtype = torch.get_default_dtype()
 
-        self.register_buffer("cos_cached", (emb.cos() * self.mscale)[None, None, :, :].to(dtype), persistent=False)
-        self.register_buffer("sin_cached", (emb.sin() * self.mscale)[None, None, :, :].to(dtype), persistent=False)
+        self.register_buffer("cos_cached", (emb.cos() * self.mscale).to(dtype), persistent=False)
+        self.register_buffer("sin_cached", (emb.sin() * self.mscale).to(dtype), persistent=False)
 
     def forward(self, x, seq_len=None):
         # x: [bs, num_attention_heads, seq_len, head_size]
@@ -324,11 +324,11 @@ class LlamaDynamicYaRNScaledRotaryEmbedding(torch.nn.Module):
             # Different from paper, but it uses a different permutation in order to obtain the same calculation
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
 
-            self.register_buffer("cos_cached", (emb.cos() * self.mscale)[None, None, :, :].to(x.dtype), persistent=False)
-            self.register_buffer("sin_cached", (emb.sin() * self.mscale)[None, None, :, :].to(x.dtype), persistent=False)
+            self.register_buffer("cos_cached", (emb.cos() * self.mscale).to(x.dtype), persistent=False)
+            self.register_buffer("sin_cached", (emb.sin() * self.mscale).to(x.dtype), persistent=False)
         return (
-            self.cos_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
-            self.sin_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
+            self.cos_cached[:seq_len].to(dtype=x.dtype),
+            self.sin_cached[:seq_len].to(dtype=x.dtype),
         )
 
     def yarn(self, scale, device):
