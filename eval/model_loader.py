@@ -5,7 +5,7 @@ from scaled_rope.patch import *
 
 def load_model(model, args):
     if args.custom_model:
-        from scaled_rope.modeling_llama import LlamaForCausalLM
+        from scaled_rope.modeling_llama_yarn import LlamaForCausalLM
         from scaled_rope.configuration_llama import LlamaConfig
         model_cls = LlamaForCausalLM
         config_cls = LlamaConfig
