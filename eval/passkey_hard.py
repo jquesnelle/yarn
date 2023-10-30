@@ -78,7 +78,7 @@ def main(args):
     tokenizer = AutoTokenizer.from_pretrained(
         models[0], model_max_length=sys.maxsize, padding_side="right", trust_remote_code=True)
 
-    data = load_dataset("togethercomputer/RedPajama-Data-1T-Sample")["train"]
+    data = load_dataset(args.dataset)[args.split]
     junks = construct_junk(data, args.fixed_length, tokenizer)
 
     # We restrict tokens to a small subset: digits, eos and continuous spaces/linebreaks
@@ -143,4 +143,6 @@ if __name__ == "__main__":
     parser.add_argument("--num-keys", type=int, default=1)
     parser.add_argument("--iterations", type=int, default=20)
     parser.add_argument("--output-file", type=str)
+    parser.add_argument("--dataset", type=str, default="togethercomputer/RedPajama-Data-1T-Sample")
+    parser.add_argument("--split", type=str, default="train")
     main(add_args(parser).parse_args())
