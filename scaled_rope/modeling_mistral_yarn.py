@@ -46,6 +46,10 @@ if is_flash_attn_2_available():
     from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input  # noqa
 
     _flash_supports_window_size = "window_size" in list(inspect.signature(flash_attn_func).parameters)
+    print("USING FLASH ATTENTION", _flash_supports_window_size)
+else:
+    print("NOT USING FLASH ATTENTION")
+    
 
 
 logger = logging.get_logger(__name__)
@@ -452,31 +456,27 @@ class MistralAttention(nn.Module):
     
     def _init_rope(self):
         if self.config.rope_scaling is None:
-            self.rotary_emb = MistralRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings, base=self.rope_theta)
+            self.rotary_emb = MistralRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings)
         else:
             scaling_type = self.config.rope_scaling["type"]
             scaling_factor = self.config.rope_scaling["factor"]
             if scaling_type == "linear":
                 self.rotary_emb = MistralLinearScalingRotaryEmbedding(
-                    self.head_dim, max_position_embeddings=self.max_position_embeddings,
-                    scaling_factor=scaling_factor, base=self.rope_theta,
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
                 )
             elif scaling_type == "dynamic":
                 self.rotary_emb = MistralDynamicNTKScalingRotaryEmbedding(
-                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor,
-                    base=self.rope_theta,
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
                 )
             elif scaling_type == "yarn":
                 original_max_position_embeddings = self.config.rope_scaling["original_max_position_embeddings"]
                 self.rotary_emb = MistralYaRNScaledRotaryEmbedding(
-                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scale=scaling_factor,
-                    original_max_position_embeddings=original_max_position_embeddings, base=self.rope_theta,
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, scale=scaling_factor, original_max_position_embeddings=original_max_position_embeddings
                 )
             elif scaling_type == "dynamic-yarn":
                 original_max_position_embeddings = self.config.rope_scaling["original_max_position_embeddings"]
                 self.rotary_emb = MistralDynamicYaRNScaledRotaryEmbedding(
-                    self.head_dim, max_position_embeddings=self.max_position_embeddings,
-                    original_max_position_embeddings=original_max_position_embeddings, base=self.rope_theta,
+                    self.head_dim, max_position_embeddings=self.max_position_embeddings, original_max_position_embeddings=original_max_position_embeddings
                 )
             else:
                 raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
@@ -595,6 +595,7 @@ class MistralFlashAttention2(MistralAttention):
         use_sliding_windows = (
             _flash_supports_window_size
             and hasattr(self.config, "sliding_window")
+            and self.config.sliding_window is not None
             and kv_seq_len > self.config.sliding_window
         )
 
@@ -815,11 +816,12 @@ class MistralDecoderLayer(nn.Module):
     def __init__(self, config: MistralConfig):
         super().__init__()
         self.hidden_size = config.hidden_size
-        self.self_attn = (
-            MistralAttention(config=config)
-            if not getattr(config, "_flash_attn_2_enabled", False)
-            else MistralFlashAttention2(config)
-        )
+        self.self_attn = MistralFlashAttention2(config)
+        #self.self_attn = (
+        #    MistralAttention(config=config)
+        #    if not getattr(config, "_flash_attn_2_enabled", False)
+        #    else MistralFlashAttention2(config)
+        #)
         self.mlp = MistralMLP(config)
         self.input_layernorm = MistralRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = MistralRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -848,6 +850,8 @@ class MistralDecoderLayer(nn.Module):
             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
         """
 
+        attention_mask = None
+        
         residual = hidden_states
 
         hidden_states = self.input_layernorm(hidden_states)
@@ -1024,6 +1028,8 @@ class MistralModel(MistralPreTrainedModel):
     def _prepare_decoder_attention_mask(
         self, attention_mask, input_shape, inputs_embeds, past_key_values_length, sliding_window
     ):
+        attention_mask = None
+        
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
@@ -1076,6 +1082,8 @@ class MistralModel(MistralPreTrainedModel):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        attention_mask = None
+        
         # retrieve input_ids and inputs_embeds
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time")
@@ -1128,13 +1136,13 @@ class MistralModel(MistralPreTrainedModel):
                     " call `tokenizer.padding_side  = 'left'` before tokenizing the input. "
                 )
 
-        attention_mask = self._prepare_decoder_attention_mask(
-            attention_mask,
-            (batch_size, seq_length),
-            inputs_embeds,
-            past_key_values_length,
-            sliding_window=self.config.sliding_window if hasattr(self.config, "sliding_window") else None,
-        )
+        #attention_mask = self._prepare_decoder_attention_mask(
+        #    attention_mask,
+        #    (batch_size, seq_length),
+        #    inputs_embeds,
+        #    past_key_values_length,
+        #    sliding_window=self.config.sliding_window if hasattr(self.config, "sliding_window") else None,
+        #)
 
         hidden_states = inputs_embeds
 
@@ -1333,6 +1341,8 @@ class MistralForCausalLM(MistralPreTrainedModel):
             input_ids = input_ids[:, -1:]
 
         position_ids = kwargs.get("position_ids", None)
+        attention_mask = None
+        
         if attention_mask is not None and position_ids is None:
             # create position_ids on the fly for batch generation
             position_ids = attention_mask.long().cumsum(-1) - 1
