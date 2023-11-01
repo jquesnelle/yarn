@@ -53,7 +53,7 @@ python eval/perplexity.py \
     --flash-attention --custom-model-mistral  \
     --min-tokens 2048 --max-tokens 131072 --tokens-step 2048  --aggressive-memory \
     --sliding-window-attention 131072 \
-    -m NousResearch/Yarn-Mistral-7b-v0.1-64k \
-    -m NousResearch/Yarn-Mistral-7b-v0.1-128k \
+    -m NousResearch/Yarn-Mistral-7b-64k \
+    -m NousResearch/Yarn-Mistral-7b-128k \
     -m amazon/MistralLite \
     -m mistralai/Mistral-7B-v0.1
