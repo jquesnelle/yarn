@@ -5,9 +5,6 @@ This repo contains the code and data for the YaRN context window extension metho
 
 Preprint (arXiv): [YaRN: Efficient Context Window Extension of Large Language Models](https://arxiv.org/abs/2309.00071)
 
-A list of mistakes caught by our readers are listed here (thank you!): [Errata.md](Errata.md)  
-v2 of the preprint will be published on arxiv with all the corrections.
-
 ## Models
 
 We publish 7B and 13B variants of [Llama 2](https://about.fb.com/news/2023/07/llama-2/) fine-tuned with YaRN at 64K and 128K context window length.
