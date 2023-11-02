@@ -7,3 +7,4 @@ venv/
 *.egg-info
 wandb/
 lm_cache/
+run.sh

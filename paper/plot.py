@@ -14,8 +14,8 @@ def main(args):
     ax.set_xlabel("Context Window")
     ax.set_ylabel("Perplexity (lower is better)")
 
-    ax.set_xlim(0, 131072)
-    ax.set_ylim(2.2, 3.8)
+    ax.set_xlim(args.xmin, args.xmax)
+    ax.set_ylim(args.ymin, args.ymax)
 
     ax.legend(loc="upper right")
 
@@ -25,4 +25,8 @@ def main(args):
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("csv", type=str)
+    args.add_argument("--xmin", type=int, default=0)
+    args.add_argument("--xmax", type=int, default=131072)
+    args.add_argument("--ymin", type=float, default=2.2)
+    args.add_argument("--ymax", type=float, default=3.8)
     main(args.parse_args())

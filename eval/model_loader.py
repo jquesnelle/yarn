@@ -5,7 +5,7 @@ from scaled_rope.patch import *
 
 def load_model(model, args):
     if args.custom_model:
-        from scaled_rope.modeling_llama import LlamaForCausalLM
+        from scaled_rope.modeling_llama_yarn import LlamaForCausalLM
         from scaled_rope.configuration_llama import LlamaConfig
         model_cls = LlamaForCausalLM
         config_cls = LlamaConfig
@@ -14,6 +14,11 @@ def load_model(model, args):
         from scaled_rope.configuration_llama import LlamaConfig
         model_cls = LlamaForCausalLM
         config_cls = LlamaConfig
+    elif args.custom_model_mistral:
+        from scaled_rope.modeling_mistral_yarn import MistralForCausalLM
+        from scaled_rope.configuration_mistral import MistralConfig
+        model_cls = MistralForCausalLM
+        config_cls = MistralConfig
     else:
         model_cls = AutoModelForCausalLM
         config_cls = AutoConfig
@@ -28,7 +33,9 @@ def load_model(model, args):
         config.use_cache = False
     else:
         config.use_cache = True
-    if args.custom_model or args.custom_model_together:
+    if args.sliding_window_attention:
+        config.sliding_window = args.sliding_window_attention
+    if args.custom_model or args.custom_model_together or args.custom_model_mistral:
         if args.linear:
             config.rope_scaling = {
                 "type": "linear",
@@ -53,12 +60,10 @@ def load_model(model, args):
         elif args.dynamic_yarn:
             config.rope_scaling = {
                 "type": "dynamic-yarn",
-                "factor": args.factor if args.factor else config.rope_scaling.get("factor", 1.0),
+                "factor": args.factor if args.factor else (config.rope_scaling.get("factor", 1.0) if config.rope_scaling is not None else 1.0),
                 "original_max_position_embeddings": args.original_max_position_embeddings if args.original_max_position_embeddings else config.rope_scaling["original_max_position_embeddings"],
-                "finetuned": args.finetuned if args.finetuned else config.rope_scaling.get("finetuned", False)
+                "finetuned": args.finetuned if args.finetuned else (config.rope_scaling.get("finetuned", False) if config.rope_scaling is not None else False)
             }
-        if args.flash_attention:
-            config.use_flash_attention = args.flash_attention
     else:
         if args.rerope:
             assert not args.custom_model and not args.custom_model_together
@@ -88,7 +93,8 @@ def load_model(model, args):
         device_map="auto",
         trust_remote_code=not args.custom_model,
         config=config,
-        quantization_config=quantization_config
+        quantization_config=quantization_config,
+        use_flash_attention_2=args.flash_attention,
     )
 
     return loaded
@@ -112,15 +118,17 @@ def add_args(parser: ArgumentParser):
     parser.add_argument("--adapter", type=str)
     parser.add_argument("--max-position-embeddings", type=int)
     parser.add_argument("--original-max-position-embeddings", type=int)
+    parser.add_argument("--sliding-window-attention", type=int)
     parser.add_argument("--custom-model", action="store_true")
     parser.add_argument("--custom-model-together", action="store_true")
+    parser.add_argument("--custom-model-mistral", action="store_true")
     parser.add_argument("--flash-attention", action="store_true")
     parser.add_argument("--no-use-cache", action="store_true")
     return parser
 
 
 def apply_patches(model, args):
-    if not args.custom_model and not args.custom_model_together:
+    if not args.custom_model and not args.custom_model_together and not args.custom_model_mistral:
         if "GPTNeoXForCausalLM" in model.config.architectures:
             assert args.gpt_neox_max_length is not None
             patch_gptneox_for_longer_sequences(model, args.gpt_neox_max_length)
@@ -189,7 +197,8 @@ def apply_patches(model, args):
             if "LlamaForCausalLM" in model.config.architectures:
                 training_length = args.original_max_position_embeddings if args.original_max_position_embeddings else 4096
                 window = args.rerope
-                patch_llama_for_rerope(model, training_length=training_length, window=window)
+                patch_llama_for_rerope(
+                    model, training_length=training_length, window=window)
             else:
                 raise RuntimeError(
                     f"Unsupported architecture {model.config.architectures} for YaRN")

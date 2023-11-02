@@ -1,0 +1,25 @@
+{
+  "results": {
+    "arc_challenge": {
+      "acc": 0.5648464163822525,
+      "acc_stderr": 0.014487986197186045,
+      "acc_norm": 0.5938566552901023,
+      "acc_norm_stderr": 0.014351656690097862
+    }
+  },
+  "versions": {
+    "arc_challenge": 0
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=NousResearch/Yarn-Mistral-7b-64k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 25,
+    "batch_size": "8",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}

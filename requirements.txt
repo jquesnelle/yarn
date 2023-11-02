@@ -2,7 +2,7 @@ accelerate
 datasets
 evaluate
 torch>=2
-transformers>=4.28.1
+transformers>=4.34.0
 tqdm
 einops
 sentencepiece

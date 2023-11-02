@@ -1,0 +1,25 @@
+{
+  "results": {
+    "hellaswag": {
+      "acc": 0.6096395140410277,
+      "acc_stderr": 0.00486834105656622,
+      "acc_norm": 0.8058155745867357,
+      "acc_norm_stderr": 0.0039476309218879286
+    }
+  },
+  "versions": {
+    "hellaswag": 0
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=NousResearch/Yarn-Mistral-7b-128k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 10,
+    "batch_size": "8",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}

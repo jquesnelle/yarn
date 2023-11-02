@@ -10,7 +10,7 @@ from model_loader import *
 
 
 def compute_perplexity(
-    encodings, model, tokenizer, add_start_token: bool = True, device=None, max_length=None, sliding_window=256, truncate=False, aggressive_memory=False
+    encodings, model, tokenizer, add_start_token: bool = True, device=None, max_length=None, sliding_window=256, truncate=False, aggressive_memory=False, hide_progress=False,
 ):
     r"""Compute "sliding window" perplexity on a dataset. Validated against the calculations reported in arXiv 2306.15595"""
     if device is not None:
@@ -38,7 +38,7 @@ def compute_perplexity(
         attn_masks = [x[0:max_tokenized_len] for x in attn_masks]
         sliding_window = max_tokenized_len
 
-    pbar = tqdm(total=len(encoded_texts))
+    pbar = tqdm(total=len(encoded_texts), disable=hide_progress)
     nlls = []
     for encoding_index in range(0, len(encoded_texts)):
 
@@ -142,7 +142,7 @@ def main(args):
                 break
 
     results = []
-    for model in tqdm(models, desc="Model", leave=False):
+    for model in tqdm(models, desc="Model", leave=False, disable=args.hide_progress):
         torch.cuda.empty_cache()
 
         loaded = load_model_and_apply_patches(model, args)
@@ -152,7 +152,7 @@ def main(args):
             ppl = compute_perplexity(model=loaded, tokenizer=tokenizer, encodings=input_texts,
                                      add_start_token=tokenizer.bos_token is not None, max_length=max_length,
                                      sliding_window=args.sliding_window, truncate=args.truncate,
-                                     aggressive_memory=args.aggressive_memory)['mean_perplexity']
+                                     aggressive_memory=args.aggressive_memory, hide_progress=args.hide_progress)['mean_perplexity']
             print(f"{model}: {max_length}={ppl}")
             result.append(ppl)
 
@@ -185,4 +185,5 @@ if __name__ == "__main__":
     parser.add_argument("--tokenized", type=str)
     parser.add_argument("--output-file", type=str)
     parser.add_argument("--aggressive-memory", action="store_true")
+    parser.add_argument("--hide-progress", action="store_true")
     main(add_args(parser).parse_args())
