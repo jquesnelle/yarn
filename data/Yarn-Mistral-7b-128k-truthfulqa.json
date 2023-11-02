@@ -1,0 +1,25 @@
+{
+  "results": {
+    "truthfulqa_mc": {
+      "mc1": 0.2717258261933905,
+      "mc1_stderr": 0.015572840452875833,
+      "mc2": 0.4246618096588122,
+      "mc2_stderr": 0.014162245453141755
+    }
+  },
+  "versions": {
+    "truthfulqa_mc": 1
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=NousResearch/Yarn-Mistral-7b-128k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 0,
+    "batch_size": "8",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}
