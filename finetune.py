@@ -185,46 +185,47 @@ def main(args):
         progress_bar.update(resume_step)
         accelerator.print(f"Resuming training from step {resume_step}")
 
-    model.train()
-    for step, batch in enumerate(train_loader):
-        if sliding_window_attention_schedule is not None:
-            model.config.sliding_window = sliding_window_attention_schedule[completed_steps % len(
-                sliding_window_attention_schedule)]
+    if not args.save_only:
+        model.train()
+        for step, batch in enumerate(train_loader):
+            if sliding_window_attention_schedule is not None:
+                model.config.sliding_window = sliding_window_attention_schedule[completed_steps % len(
+                    sliding_window_attention_schedule)]
 
-        loss_log = None
-        with accelerator.accumulate(model):
-            loss = model(**batch).loss
-            accelerator.backward(loss)
+            loss_log = None
+            with accelerator.accumulate(model):
+                loss = model(**batch).loss
+                accelerator.backward(loss)
+
+                if accelerator.sync_gradients:
+                    loss_log = {"loss": loss.item()}
+                    accelerator.log(loss_log, step=completed_steps)
+                    if isinstance(args.grad_norm, float):
+                        accelerator.clip_grad_norm_(
+                            model.parameters(), args.grad_norm)
+
+                optim.step()
+                scheduler.step()
+                optim.zero_grad()
 
             if accelerator.sync_gradients:
-                loss_log = {"loss": loss.item()}
-                accelerator.log(loss_log, step=completed_steps)
-                if isinstance(args.grad_norm, float):
-                    accelerator.clip_grad_norm_(
-                        model.parameters(), args.grad_norm)
+                progress_bar.update(1)
+                if loss_log is not None:
+                    progress_bar.set_postfix(loss_log)
+                completed_steps += 1
 
-            optim.step()
-            scheduler.step()
-            optim.zero_grad()
+                if isinstance(args.checkpointing_steps, int) and completed_steps > 0:
+                    if completed_steps % args.checkpointing_steps == 0:
+                        output_dir = f"step_{completed_steps}"
+                        if args.output_dir is not None:
+                            output_dir = os.path.join(args.output_dir, output_dir)
+                        accelerator.save_state(output_dir)
 
-        if accelerator.sync_gradients:
-            progress_bar.update(1)
-            if loss_log is not None:
-                progress_bar.set_postfix(loss_log)
-            completed_steps += 1
+            if completed_steps >= args.max_train_steps:
+                break
 
-            if isinstance(args.checkpointing_steps, int) and completed_steps > 0:
-                if completed_steps % args.checkpointing_steps == 0:
-                    output_dir = f"step_{completed_steps}"
-                    if args.output_dir is not None:
-                        output_dir = os.path.join(args.output_dir, output_dir)
-                    accelerator.save_state(output_dir)
-
-        if completed_steps >= args.max_train_steps:
-            break
-
-    accelerator.print(f"Training Finished")
-    accelerator.end_training()
+        accelerator.print(f"Training Finished")
+        accelerator.end_training()
 
     accelerator.print(f"Saving model to {args.output_dir}")
     if args.output_dir is not None:
@@ -271,4 +272,5 @@ if __name__ == "__main__":
     args.add_argument("--sliding-window-attention-schedule", type=str)
     args.add_argument("--lr-schedule", type=str,
                       choices=["linear", "constant"], default="linear")
+    args.add_argument("--save-only", action="store_true")
     main(args.parse_args())
