@@ -9,6 +9,7 @@ from accelerate import Accelerator
 from accelerate.utils import InitProcessGroupKwargs, set_seed, DummyOptim, DummyScheduler
 from tqdm import tqdm
 from transformers import set_seed, default_data_collator, get_linear_schedule_with_warmup, get_constant_schedule_with_warmup
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP, StateDictType, FullStateDictConfig
 
 
 def find_all_linear_names(model):
@@ -218,7 +219,8 @@ def main(args):
                     if completed_steps % args.checkpointing_steps == 0:
                         output_dir = f"step_{completed_steps}"
                         if args.output_dir is not None:
-                            output_dir = os.path.join(args.output_dir, output_dir)
+                            output_dir = os.path.join(
+                                args.output_dir, output_dir)
                         accelerator.save_state(output_dir)
 
             if completed_steps >= args.max_train_steps:
@@ -227,16 +229,24 @@ def main(args):
         accelerator.print(f"Training Finished")
         accelerator.end_training()
 
-    accelerator.print(f"Saving model to {args.output_dir}")
     if args.output_dir is not None:
-        accelerator.wait_for_everyone()
-        unwrapped_model = accelerator.unwrap_model(model)
+        accelerator.print(f"Saving model to {args.output_dir}")
 
-        unwrapped_model.save_pretrained(
+        accelerator.wait_for_everyone()
+
+        if args.deepspeed:
+            state_dict = accelerator.get_state_dict(model)
+        else:
+            full_state_dict_config = FullStateDictConfig(
+                offload_to_cpu=True, rank0_only=True)
+            with FSDP.state_dict_type(model, StateDictType.FULL_STATE_DICT, full_state_dict_config):
+                state_dict = accelerator.get_state_dict(model, unwrap=False)
+
+        accelerator.unwrap_model(model).save_pretrained(
             f"{args.output_dir}",
             is_main_process=accelerator.is_main_process,
             save_function=accelerator.save,
-            state_dict=accelerator.get_state_dict(model),
+            state_dict=state_dict,
         )
 
         accelerator.print(f"Saving Finished")
