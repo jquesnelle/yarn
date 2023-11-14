@@ -53,13 +53,13 @@ def main(args):
         from scaled_rope.configuration_llama import LlamaConfig
         config_cls = LlamaConfig
         model_cls = LlamaForCausalLM
-        original_max_position_embeddings = 4096
+        original_max_position_embeddings = args.original_max_position_embeddings if args.original_max_position_embeddings else 4096
     elif args.architecture == "mistral":
         from scaled_rope.modeling_mistral_yarn import MistralForCausalLM
         from scaled_rope.configuration_mistral import MistralConfig
         config_cls = MistralConfig
         model_cls = MistralForCausalLM
-        original_max_position_embeddings = 8192
+        original_max_position_embeddings = args.original_max_position_embeddings if args.original_max_position_embeddings else 8192
 
     config = config_cls.from_pretrained(args.model)
     config.rope_scaling = {
@@ -289,4 +289,5 @@ if __name__ == "__main__":
                       choices=["linear", "constant"], default="linear")
     args.add_argument("--save-only", action="store_true")
     args.add_argument("--log-loss", type=str)
+    args.add_argument("--original-max-position-embeddings", type=int)
     main(args.parse_args())
