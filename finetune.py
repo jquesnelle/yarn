@@ -186,7 +186,7 @@ def main(args):
         progress_bar.update(resume_step)
         accelerator.print(f"Resuming training from step {resume_step}")
 
-    loss_file = open(args.log_loss, "a") if args.log_loss else None
+    loss_file = open(args.log_loss, "a" if args.resume_from_checkpoint else "w") if args.log_loss and accelerator.is_main_process else None
 
     if not args.save_only:
         model.train()
