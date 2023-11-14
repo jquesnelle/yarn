@@ -186,6 +186,8 @@ def main(args):
         progress_bar.update(resume_step)
         accelerator.print(f"Resuming training from step {resume_step}")
 
+    loss_file = open(args.log_loss, "a") if args.log_loss else None
+
     if not args.save_only:
         model.train()
         for step, batch in enumerate(train_loader):
@@ -201,6 +203,9 @@ def main(args):
                 if accelerator.sync_gradients:
                     loss_log = {"loss": loss.item()}
                     accelerator.log(loss_log, step=completed_steps)
+                    if loss_file is not None:
+                        loss_file.write(f"{loss_log['loss']},")
+                        loss_file.flush()
                     if isinstance(args.grad_norm, float):
                         accelerator.clip_grad_norm_(
                             model.parameters(), args.grad_norm)
@@ -283,4 +288,5 @@ if __name__ == "__main__":
     args.add_argument("--lr-schedule", type=str,
                       choices=["linear", "constant"], default="linear")
     args.add_argument("--save-only", action="store_true")
+    args.add_argument("--log-loss", type=str)
     main(args.parse_args())
