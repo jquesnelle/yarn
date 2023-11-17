@@ -222,7 +222,7 @@ class LlamaDynamicNTKScalingRotaryEmbedding(LlamaRotaryEmbedding):
 
 
 class LlamaYaRNScaledRotaryEmbedding(torch.nn.Module):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, scale=1, original_max_position_embeddings=2048, extrapolation_factor=1, attn_factor=1, beta_fast=32, beta_slow=1, finetuned=False, device=None):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, scale=1, original_max_position_embeddings=2048, extrapolation_factor=1, attn_factor=1, beta_fast=32, beta_slow=1, ntk_by_parts=False, device=None):
         super().__init__()
 
         self.dim = dim
@@ -234,6 +234,7 @@ class LlamaYaRNScaledRotaryEmbedding(torch.nn.Module):
         self.attn_factor = attn_factor
         self.beta_fast = beta_fast
         self.beta_slow = beta_slow
+        self.ntk_by_parts = ntk_by_parts
 
         self.yarn(device)
 
@@ -276,7 +277,7 @@ class LlamaYaRNScaledRotaryEmbedding(torch.nn.Module):
         inv_freq = inv_freq_interpolation * (1 - inv_freq_mask) + inv_freq_extrapolation * inv_freq_mask
 
         self.register_buffer("inv_freq", inv_freq, persistent=False)
-        self.mscale = float(_yarn_get_mscale(self.scale) * self.attn_factor) # Get n-d magnitude scaling corrected for interpolation
+        self.mscale = 1.0 if self.ntk_by_parts else float(_yarn_get_mscale(self.scale) * self.attn_factor) # Get n-d magnitude scaling corrected for interpolation
 
 
 class LlamaDynamicYaRNScaledRotaryEmbedding(torch.nn.Module):
@@ -455,13 +456,14 @@ class LlamaAttention(nn.Module):
                     scaling_factor=scaling_factor,
                     base=self.rope_theta,
                 )
-            elif scaling_type == "yarn":
+            elif scaling_type == "yarn" or scaling_type == "ntk-by-parts":
                 original_max_position_embeddings = self.config.rope_scaling["original_max_position_embeddings"]
                 self.rotary_emb = LlamaYaRNScaledRotaryEmbedding(
                     self.head_dim,
                     max_position_embeddings=self.max_position_embeddings,
                     scale=scaling_factor,
-                    original_max_position_embeddings=original_max_position_embeddings
+                    original_max_position_embeddings=original_max_position_embeddings,
+                    ntk_by_parts=scaling_type == "ntk-by-parts"
                 )
             elif scaling_type == "dynamic-yarn":
                 original_max_position_embeddings = self.config.rope_scaling["original_max_position_embeddings"]
