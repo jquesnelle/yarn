@@ -862,10 +862,6 @@ class LlamaPreTrainedModel(PreTrainedModel):
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, LlamaModel):
-            module.gradient_checkpointing = value
-
 
 LLAMA_INPUTS_DOCSTRING = r"""
     Args:
