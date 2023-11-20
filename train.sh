@@ -24,6 +24,14 @@ accelerate launch finetune.py \
     --scaling-factor 32 \
     --seed 31337
 
+accelerate launch finetune.py \
+    --model NousResearch/Llama-2-70b-hf \
+    --output-dir output/yarn-70b-32k \
+    --learning-rate 0.00001 \
+    --lr-schedule constant \
+    --scaling-factor 8 \
+    --dataset emozilla/yarn-train-tokenized-8k-llama
+
 # ablations
 
 python3 truncate.py 8192 output/truncated-8k

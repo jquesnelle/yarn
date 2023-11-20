@@ -10,7 +10,7 @@ Preprint v2 (arXiv): [YaRN: Efficient Context Window Extension of Large Language
 
 ### LLaMA
 
-We publish 7B and 13B variants of [Llama 2](https://about.fb.com/news/2023/07/llama-2/) fine-tuned with YaRN at 64K and 128K context window length.
+We publish variants of [Llama 2](https://about.fb.com/news/2023/07/llama-2/) fine-tuned with YaRN at 32K, 64K and 128K context window length.
 They are available under the Llama 2 license on 🤗 Hugging Face.
 
 | Size | Context | Link   |
@@ -19,6 +19,7 @@ They are available under the Llama 2 license on 🤗 Hugging Face.
 |   7B |    128K | [NousResearch/Yarn-Llama-2-7b-128k](https://huggingface.co/NousResearch/Yarn-Llama-2-7b-128k)   |
 |  13B |     64K | [NousResearch/Yarn-Llama-2-13b-64k](https://huggingface.co/NousResearch/Yarn-Llama-2-13b-64k)   |
 |  13B |    128K | [NousResearch/Yarn-Llama-2-13b-128k](https://huggingface.co/NousResearch/Yarn-Llama-2-13b-128k) |
+|  70B |     32K | [NousResearch/Yarn-Llama-2-70b-32k](https://huggingface.co/NousResearch/Yarn-Llama-2-70b-32k)   |
 
 In addition, we also publish 8K context window versions of Llama 2 7B fine-tuned with [NTK-aware](https://huggingface.co/emozilla/NTK-Llama-2-7b-8k) and [YaRN](https://huggingface.co/emozilla/Yarn-Llama-2-7b-8k) (Table 1 in the conference paper).
 
