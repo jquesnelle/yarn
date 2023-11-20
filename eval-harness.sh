@@ -40,6 +40,26 @@ python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     --model_args="pretrained=NousResearch/Yarn-Mistral-7b-128k,${MODEL_ARGS}" \
     --output_path="data/Yarn-Mistral-7b-128k-arc.json"
 
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${ARC} \
+    --model_args="pretrained=emozilla/Linear-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/Linear-Llama-7b-32k-arc.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${ARC} \
+    --model_args="pretrained=emozilla/NTK-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/NTK-Llama-7b-32k-arc.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${ARC} \
+    --model_args="pretrained=emozilla/NTK-by-parts-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/NTK-by-parts-Llama-7b-32k-arc.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${ARC} \
+    --model_args="pretrained=emozilla/Yarn-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/Yarn-Llama-7b-32k-arc.json"
+
 ### Hellaswag
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
@@ -71,6 +91,26 @@ python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${HELLASWAG} \
     --model_args="pretrained=NousResearch/Yarn-Mistral-7b-128k,${MODEL_ARGS}" \
     --output_path="data/Yarn-Mistral-7b-128k-hellaswag.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${HELLASWAG} \
+    --model_args="pretrained=emozilla/Linear-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/Linear-Llama-7b-32k-hellaswag.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${HELLASWAG} \
+    --model_args="pretrained=emozilla/NTK-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/NTK-Llama-7b-32k-hellaswag.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${HELLASWAG} \
+    --model_args="pretrained=emozilla/NTK-by-parts-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/NTK-by-parts-Llama-7b-32k-hellaswag.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${HELLASWAG} \
+    --model_args="pretrained=emozilla/Yarn-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/Yarn-Llama-7b-32k-hellaswag.json"
 
 ### MMLU
 
@@ -104,6 +144,26 @@ python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     --model_args="pretrained=NousResearch/Yarn-Mistral-7b-128k,${MODEL_ARGS}" \
     --output_path="data/Yarn-Mistral-7b-128k-mmlu.json"
 
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${MMLU} \
+    --model_args="pretrained=emozilla/Linear-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/Linear-Llama-7b-32k-mmlu.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${MMLU} \
+    --model_args="pretrained=emozilla/NTK-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/NTK-Llama-7b-32k-mmlu.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${MMLU} \
+    --model_args="pretrained=emozilla/NTK-by-parts-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/NTK-by-parts-Llama-7b-32k-mmlu.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${MMLU} \
+    --model_args="pretrained=emozilla/Yarn-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/Yarn-Llama-7b-32k-mmlu.json"
+
 ## TruthfulQA
 
 python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
@@ -135,3 +195,23 @@ python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
     ${TRUTHFULQA} \
     --model_args="pretrained=NousResearch/Yarn-Mistral-7b-128k,${MODEL_ARGS}" \
     --output_path="data/Yarn-Mistral-7b-128k-truthfulqa.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${TRUTHFULQA} \
+    --model_args="pretrained=emozilla/Linear-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/Linear-Llama-7b-32k-truthfulqa.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${TRUTHFULQA} \
+    --model_args="pretrained=emozilla/NTK-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/NTK-Llama-7b-32k-truthfulqa.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${TRUTHFULQA} \
+    --model_args="pretrained=emozilla/NTK-by-parts-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/NTK-by-parts-Llama-7b-32k-truthfulqa.json"
+
+python ${LM_EVALUATION_HARNESS_PATH}/main.py ${ARGS} \
+    ${TRUTHFULQA} \
+    --model_args="pretrained=emozilla/Yarn-Llama-7b-32k,${MODEL_ARGS}" \
+    --output_path="data/Yarn-Llama-7b-32k-truthfulqa.json"

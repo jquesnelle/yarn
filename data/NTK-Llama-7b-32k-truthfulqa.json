@@ -1,0 +1,25 @@
+{
+  "results": {
+    "truthfulqa_mc": {
+      "mc1": 0.20195838433292534,
+      "mc1_stderr": 0.014053957441512343,
+      "mc2": 0.32607949993473906,
+      "mc2_stderr": 0.013188467879261208
+    }
+  },
+  "versions": {
+    "truthfulqa_mc": 1
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=emozilla/NTK-Llama-7b-32k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 0,
+    "batch_size": "20",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}

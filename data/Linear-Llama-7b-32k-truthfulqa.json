@@ -1,0 +1,25 @@
+{
+  "results": {
+    "truthfulqa_mc": {
+      "mc1": 0.193390452876377,
+      "mc1_stderr": 0.013826240752599066,
+      "mc2": 0.34145438370925285,
+      "mc2_stderr": 0.013591862233367143
+    }
+  },
+  "versions": {
+    "truthfulqa_mc": 1
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=emozilla/Linear-Llama-7b-32k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 0,
+    "batch_size": "20",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}

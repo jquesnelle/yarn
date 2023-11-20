@@ -1,0 +1,25 @@
+{
+  "results": {
+    "hellaswag": {
+      "acc": 0.5425214100776737,
+      "acc_stderr": 0.004971704917267746,
+      "acc_norm": 0.7389962158932484,
+      "acc_norm_stderr": 0.004382844128643407
+    }
+  },
+  "versions": {
+    "hellaswag": 0
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=emozilla/NTK-Llama-7b-32k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 10,
+    "batch_size": "20",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}

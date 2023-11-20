@@ -1,0 +1,25 @@
+{
+  "results": {
+    "arc_challenge": {
+      "acc": 0.44880546075085326,
+      "acc_stderr": 0.014534599585097662,
+      "acc_norm": 0.4812286689419795,
+      "acc_norm_stderr": 0.014601090150633964
+    }
+  },
+  "versions": {
+    "arc_challenge": 0
+  },
+  "config": {
+    "model": "hf-causal-experimental",
+    "model_args": "pretrained=emozilla/Yarn-Llama-7b-32k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True",
+    "num_fewshot": 25,
+    "batch_size": "20",
+    "batch_sizes": [],
+    "device": null,
+    "no_cache": false,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "description_dict": {}
+  }
+}
