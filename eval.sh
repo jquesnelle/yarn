@@ -13,10 +13,8 @@ PROOFPILE_LONG_SMALL="--tokenized emozilla/proofpile-test-tokenized --dataset-mi
 # python eval/perplexity.py -m mistralai/Mistral-7B-v0.1 --dataset hoskinson-center/proof-pile --split test --feature text --save-tokenized output/proofpile-test-tokenized-mistral
 PROOFPILE_LONG_SMALL_MISTRAL="--tokenized emozilla/proofpile-test-tokenized-mistral --dataset-min-tokens 131072 --samples 10 --truncate --split train"
 
-CUSTOM="--custom-model-together"
-
 python eval/perplexity.py \
-    ${PROOFPILE_LONG_SMALL} ${CUSTOM} \
+    ${PROOFPILE_LONG_SMALL} --custom-model --flash-attention \
     --output-file data/proofpile-long-small.csv \
     --min-tokens 2048 --max-tokens 131072 --tokens-step 2048 --aggressive-memory \
     -m NousResearch/CodeLlama-13b-hf \
@@ -28,7 +26,7 @@ python eval/perplexity.py \
     -m NousResearch/Yarn-Llama-2-7b-128k
 
 python eval/perplexity.py \
-    ${GOVREPORT} ${CUSTOM} \
+    ${GOVREPORT} --custom-model --flash-attention \
     --output-file data/govreport.csv \
     --min-tokens 32768 --max-tokens 32768 \
     -m NousResearch/CodeLlama-13b-hf \
@@ -40,7 +38,7 @@ python eval/perplexity.py \
     -m NousResearch/Yarn-Llama-2-7b-128k
 
 python eval/perplexity.py \
-    ${PROOFPILE_LONG_SMALL} ${CUSTOM} \
+    ${PROOFPILE_LONG_SMALL} --custom-model --flash-attention \
     --output-file data/proofpile-long-small-8k.csv \
     --min-tokens 2048 --max-tokens 16384 --tokens-step 2048 \
     -m emozilla/Yarn-Llama-2-7b-8k \
@@ -57,3 +55,13 @@ python eval/perplexity.py \
     -m NousResearch/Yarn-Mistral-7b-128k \
     -m amazon/MistralLite \
     -m mistralai/Mistral-7B-v0.1
+
+python eval/passkey.py \
+    --flash-attention --custom-model --flash-attention \
+    --min-tokens 2048 --max-tokens 32768 --length-step 256 \
+    --iterations 50 \
+    -m emozilla/Linear-Llama-7b-32k \
+    -m emozilla/NTK-Llama-7b-32k \
+    -m emozilla/NTK-by-parts-Llama-7b-32k \
+    -m emozilla/Yarn-Llama-7b-32k \
+    --output-file data/passkey-32k.csv
