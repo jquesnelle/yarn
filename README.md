@@ -80,7 +80,6 @@ accelerate configuration saved at /root/.cache/huggingface/accelerate/default_co
 $ accelerate launch finetune.py --output-dir  output/yarn-7b-8k  --model NousResearch/Llama-2-7b-hf --scaling-factor 2  --wandb ${YOUR_WANDB_PROJECT}  --dataset emozilla/yarn-train-tokenized-8k-llama    --deepspeed
 ```
 
-
 ### Evaluation
 
 To reproduce the evaluations, install [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) with `pip install git+https://github.com/EleutherAI/lm-evaluation-harness` and then run the two provided scripts.
