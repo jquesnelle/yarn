@@ -54,6 +54,33 @@ To train the models, run `accelerate config` and enable DeepSpeed acceleration. 
 The tokenized training data is available on [🤗Hugging Face](https://huggingface.co/datasets/emozilla/pg_books-tokenized-bos-eos-chunked-65536) and was derived from the [pg19](https://huggingface.co/datasets/emozilla/pg19) dataset.
 For the Mistral models, a mix of the pretrain and fine-tune splits of [Long-Data-Collections](https://huggingface.co/datasets/togethercomputer/Long-Data-Collections) was used and the tokenized dataset is also available on [🤗Hugging Face](https://huggingface.co/datasets/emozilla/yarn-train-tokenized-16k-mistral).
 
+Here is a more dedicated step for beginners, take Llama-2-7b as example:
+```sh
+# **Step1.** Accelerate config
+$ accelerate config
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+In which compute environment are you running?
+This machine                                                                                                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Which type of machine are you using?                                                                                                                                    
+multi-GPU                                                                                                                                                               
+How many different machines will you use (use more than 1 for multi-node training)? [1]:                                                                                
+Should distributed operations be checked while running for errors? This can avoid timeout issues but will be slower. [yes/NO]:                                          
+Do you wish to optimize your script with torch dynamo?[yes/NO]:                                                                                                         
+Do you want to use DeepSpeed? [yes/NO]: yes                                                                                                                             
+Do you want to specify a json file to a DeepSpeed config? [yes/NO]: yes                                                                                                 
+Please enter the path to the json DeepSpeed config file: /workspace/yarn/deepspeed/zero3.json                                                                           
+Do you want to enable `deepspeed.zero.Init` when using ZeRO Stage-3 for constructing massive models? [yes/NO]: yes
+How many GPU(s) should be used for distributed training? [1]:4
+accelerate configuration saved at /root/.cache/huggingface/accelerate/default_config.yaml
+
+# **Step2.** Modify deepspeed/zero3.json according to [deepspeed configuration json](https://www.deepspeed.ai/docs/config-json/) in case of OOM
+
+# **Step3.** Enable wandb and train
+$ accelerate launch finetune.py --output-dir output/yarn-7b-64k  --model NousResearch/Llama-2-7b-hf  --wandb ${YOUR_WANDB_PROJECT}  --deepspeed
+```
+
+
 ### Evaluation
 
 To reproduce the evaluations, install [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) with `pip install git+https://github.com/EleutherAI/lm-evaluation-harness` and then run the two provided scripts.
