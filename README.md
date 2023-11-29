@@ -54,7 +54,7 @@ To train the models, run `accelerate config` and enable DeepSpeed acceleration. 
 The tokenized training data is available on [🤗Hugging Face](https://huggingface.co/datasets/emozilla/pg_books-tokenized-bos-eos-chunked-65536) and was derived from the [pg19](https://huggingface.co/datasets/emozilla/pg19) dataset.
 For the Mistral models, a mix of the pretrain and fine-tune splits of [Long-Data-Collections](https://huggingface.co/datasets/togethercomputer/Long-Data-Collections) was used and the tokenized dataset is also available on [🤗Hugging Face](https://huggingface.co/datasets/emozilla/yarn-train-tokenized-16k-mistral).
 
-Here is a more dedicated step for beginners, take Llama-2-7b as example:
+Here is a more dedicated fast try for beginners, take Llama-2-7b-8k as example, it may need 4 hours on 4xA100:
 ```sh
 # **Step1.** Accelerate config
 $ accelerate config
@@ -77,7 +77,7 @@ accelerate configuration saved at /root/.cache/huggingface/accelerate/default_co
 # **Step2.** Modify deepspeed/zero3.json according to [deepspeed configuration json](https://www.deepspeed.ai/docs/config-json/) in case of OOM
 
 # **Step3.** Enable wandb and train
-$ accelerate launch finetune.py --output-dir output/yarn-7b-64k  --model NousResearch/Llama-2-7b-hf  --wandb ${YOUR_WANDB_PROJECT}  --deepspeed
+$ accelerate launch finetune.py --output-dir  output/yarn-7b-8k  --model NousResearch/Llama-2-7b-hf --scaling-factor 2  --wandb ${YOUR_WANDB_PROJECT}  --dataset emozilla/yarn-train-tokenized-8k-llama    --deepspeed
 ```
 
 
