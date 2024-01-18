@@ -1,0 +1,25 @@
+{
+    "results": {
+        "arc_challenge": {
+            "acc": 0.5597269624573379,
+            "acc_stderr": 0.014506769524804236,
+            "acc_norm": 0.5921501706484642,
+            "acc_norm_stderr": 0.014361097288449703
+        }
+    },
+    "versions": {
+        "arc_challenge": 0
+    },
+    "config": {
+        "model": "hf-causal-experimental",
+        "model_args": "pretrained=NousResearch/Yarn-Solar-10b-64k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True,peft=",
+        "num_fewshot": 25,
+        "batch_size": "24",
+        "batch_sizes": [],
+        "device": null,
+        "no_cache": true,
+        "limit": null,
+        "bootstrap_iters": 100000,
+        "description_dict": {}
+    }
+}

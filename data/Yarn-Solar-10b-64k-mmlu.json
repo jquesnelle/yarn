@@ -1,0 +1,417 @@
+{
+    "results": {
+      "hendrycksTest-abstract_algebra": {
+        "acc": 0.35,
+        "acc_stderr": 0.04793724854411021,
+        "acc_norm": 0.35,
+        "acc_norm_stderr": 0.04793724854411021
+      },
+      "hendrycksTest-anatomy": {
+        "acc": 0.5555555555555556,
+        "acc_stderr": 0.04292596718256981,
+        "acc_norm": 0.5555555555555556,
+        "acc_norm_stderr": 0.04292596718256981
+      },
+      "hendrycksTest-astronomy": {
+        "acc": 0.6973684210526315,
+        "acc_stderr": 0.037385206761196686,
+        "acc_norm": 0.6973684210526315,
+        "acc_norm_stderr": 0.037385206761196686
+      },
+      "hendrycksTest-business_ethics": {
+        "acc": 0.65,
+        "acc_stderr": 0.047937248544110196,
+        "acc_norm": 0.65,
+        "acc_norm_stderr": 0.047937248544110196
+      },
+      "hendrycksTest-clinical_knowledge": {
+        "acc": 0.6679245283018868,
+        "acc_stderr": 0.02898545565233439,
+        "acc_norm": 0.6679245283018868,
+        "acc_norm_stderr": 0.02898545565233439
+      },
+      "hendrycksTest-college_biology": {
+        "acc": 0.7291666666666666,
+        "acc_stderr": 0.03716177437566017,
+        "acc_norm": 0.7291666666666666,
+        "acc_norm_stderr": 0.03716177437566017
+      },
+      "hendrycksTest-college_chemistry": {
+        "acc": 0.38,
+        "acc_stderr": 0.04878317312145632,
+        "acc_norm": 0.38,
+        "acc_norm_stderr": 0.04878317312145632
+      },
+      "hendrycksTest-college_computer_science": {
+        "acc": 0.58,
+        "acc_stderr": 0.049604496374885836,
+        "acc_norm": 0.58,
+        "acc_norm_stderr": 0.049604496374885836
+      },
+      "hendrycksTest-college_mathematics": {
+        "acc": 0.38,
+        "acc_stderr": 0.04878317312145632,
+        "acc_norm": 0.38,
+        "acc_norm_stderr": 0.04878317312145632
+      },
+      "hendrycksTest-college_medicine": {
+        "acc": 0.6069364161849711,
+        "acc_stderr": 0.03724249595817731,
+        "acc_norm": 0.6069364161849711,
+        "acc_norm_stderr": 0.03724249595817731
+      },
+      "hendrycksTest-college_physics": {
+        "acc": 0.3333333333333333,
+        "acc_stderr": 0.04690650298201943,
+        "acc_norm": 0.3333333333333333,
+        "acc_norm_stderr": 0.04690650298201943
+      },
+      "hendrycksTest-computer_security": {
+        "acc": 0.77,
+        "acc_stderr": 0.04229525846816506,
+        "acc_norm": 0.77,
+        "acc_norm_stderr": 0.04229525846816506
+      },
+      "hendrycksTest-conceptual_physics": {
+        "acc": 0.5702127659574469,
+        "acc_stderr": 0.03236214467715564,
+        "acc_norm": 0.5702127659574469,
+        "acc_norm_stderr": 0.03236214467715564
+      },
+      "hendrycksTest-econometrics": {
+        "acc": 0.5,
+        "acc_stderr": 0.047036043419179864,
+        "acc_norm": 0.5,
+        "acc_norm_stderr": 0.047036043419179864
+      },
+      "hendrycksTest-electrical_engineering": {
+        "acc": 0.5862068965517241,
+        "acc_stderr": 0.04104269211806232,
+        "acc_norm": 0.5862068965517241,
+        "acc_norm_stderr": 0.04104269211806232
+      },
+      "hendrycksTest-elementary_mathematics": {
+        "acc": 0.43915343915343913,
+        "acc_stderr": 0.02555992055053101,
+        "acc_norm": 0.43915343915343913,
+        "acc_norm_stderr": 0.02555992055053101
+      },
+      "hendrycksTest-formal_logic": {
+        "acc": 0.4126984126984127,
+        "acc_stderr": 0.04403438954768177,
+        "acc_norm": 0.4126984126984127,
+        "acc_norm_stderr": 0.04403438954768177
+      },
+      "hendrycksTest-global_facts": {
+        "acc": 0.37,
+        "acc_stderr": 0.048523658709391,
+        "acc_norm": 0.37,
+        "acc_norm_stderr": 0.048523658709391
+      },
+      "hendrycksTest-high_school_biology": {
+        "acc": 0.7354838709677419,
+        "acc_stderr": 0.02509189237885928,
+        "acc_norm": 0.7354838709677419,
+        "acc_norm_stderr": 0.02509189237885928
+      },
+      "hendrycksTest-high_school_chemistry": {
+        "acc": 0.41379310344827586,
+        "acc_stderr": 0.03465304488406796,
+        "acc_norm": 0.41379310344827586,
+        "acc_norm_stderr": 0.03465304488406796
+      },
+      "hendrycksTest-high_school_computer_science": {
+        "acc": 0.66,
+        "acc_stderr": 0.04760952285695237,
+        "acc_norm": 0.66,
+        "acc_norm_stderr": 0.04760952285695237
+      },
+      "hendrycksTest-high_school_european_history": {
+        "acc": 0.7575757575757576,
+        "acc_stderr": 0.03346409881055953,
+        "acc_norm": 0.7575757575757576,
+        "acc_norm_stderr": 0.03346409881055953
+      },
+      "hendrycksTest-high_school_geography": {
+        "acc": 0.8131313131313131,
+        "acc_stderr": 0.027772533334218967,
+        "acc_norm": 0.8131313131313131,
+        "acc_norm_stderr": 0.027772533334218967
+      },
+      "hendrycksTest-high_school_government_and_politics": {
+        "acc": 0.8808290155440415,
+        "acc_stderr": 0.023381935348121417,
+        "acc_norm": 0.8808290155440415,
+        "acc_norm_stderr": 0.023381935348121417
+      },
+      "hendrycksTest-high_school_macroeconomics": {
+        "acc": 0.6461538461538462,
+        "acc_stderr": 0.024243783994062167,
+        "acc_norm": 0.6461538461538462,
+        "acc_norm_stderr": 0.024243783994062167
+      },
+      "hendrycksTest-high_school_mathematics": {
+        "acc": 0.35185185185185186,
+        "acc_stderr": 0.02911661760608302,
+        "acc_norm": 0.35185185185185186,
+        "acc_norm_stderr": 0.02911661760608302
+      },
+      "hendrycksTest-high_school_microeconomics": {
+        "acc": 0.6638655462184874,
+        "acc_stderr": 0.030684737115135363,
+        "acc_norm": 0.6638655462184874,
+        "acc_norm_stderr": 0.030684737115135363
+      },
+      "hendrycksTest-high_school_physics": {
+        "acc": 0.36423841059602646,
+        "acc_stderr": 0.03929111781242742,
+        "acc_norm": 0.36423841059602646,
+        "acc_norm_stderr": 0.03929111781242742
+      },
+      "hendrycksTest-high_school_psychology": {
+        "acc": 0.8348623853211009,
+        "acc_stderr": 0.015919557829976044,
+        "acc_norm": 0.8348623853211009,
+        "acc_norm_stderr": 0.015919557829976044
+      },
+      "hendrycksTest-high_school_statistics": {
+        "acc": 0.6203703703703703,
+        "acc_stderr": 0.033096825811190354,
+        "acc_norm": 0.6203703703703703,
+        "acc_norm_stderr": 0.033096825811190354
+      },
+      "hendrycksTest-high_school_us_history": {
+        "acc": 0.7990196078431373,
+        "acc_stderr": 0.028125972265654373,
+        "acc_norm": 0.7990196078431373,
+        "acc_norm_stderr": 0.028125972265654373
+      },
+      "hendrycksTest-high_school_world_history": {
+        "acc": 0.8270042194092827,
+        "acc_stderr": 0.024621562866768424,
+        "acc_norm": 0.8270042194092827,
+        "acc_norm_stderr": 0.024621562866768424
+      },
+      "hendrycksTest-human_aging": {
+        "acc": 0.7085201793721974,
+        "acc_stderr": 0.030500283176545843,
+        "acc_norm": 0.7085201793721974,
+        "acc_norm_stderr": 0.030500283176545843
+      },
+      "hendrycksTest-human_sexuality": {
+        "acc": 0.732824427480916,
+        "acc_stderr": 0.038808483010823944,
+        "acc_norm": 0.732824427480916,
+        "acc_norm_stderr": 0.038808483010823944
+      },
+      "hendrycksTest-international_law": {
+        "acc": 0.7520661157024794,
+        "acc_stderr": 0.039418975265163025,
+        "acc_norm": 0.7520661157024794,
+        "acc_norm_stderr": 0.039418975265163025
+      },
+      "hendrycksTest-jurisprudence": {
+        "acc": 0.7592592592592593,
+        "acc_stderr": 0.04133119440243838,
+        "acc_norm": 0.7592592592592593,
+        "acc_norm_stderr": 0.04133119440243838
+      },
+      "hendrycksTest-logical_fallacies": {
+        "acc": 0.7423312883435583,
+        "acc_stderr": 0.03436150827846917,
+        "acc_norm": 0.7423312883435583,
+        "acc_norm_stderr": 0.03436150827846917
+      },
+      "hendrycksTest-machine_learning": {
+        "acc": 0.4642857142857143,
+        "acc_stderr": 0.04733667890053757,
+        "acc_norm": 0.4642857142857143,
+        "acc_norm_stderr": 0.04733667890053757
+      },
+      "hendrycksTest-management": {
+        "acc": 0.7961165048543689,
+        "acc_stderr": 0.039891398595317706,
+        "acc_norm": 0.7961165048543689,
+        "acc_norm_stderr": 0.039891398595317706
+      },
+      "hendrycksTest-marketing": {
+        "acc": 0.8846153846153846,
+        "acc_stderr": 0.020930193185179333,
+        "acc_norm": 0.8846153846153846,
+        "acc_norm_stderr": 0.020930193185179333
+      },
+      "hendrycksTest-medical_genetics": {
+        "acc": 0.7,
+        "acc_stderr": 0.046056618647183814,
+        "acc_norm": 0.7,
+        "acc_norm_stderr": 0.046056618647183814
+      },
+      "hendrycksTest-miscellaneous": {
+        "acc": 0.8148148148148148,
+        "acc_stderr": 0.013890862162876168,
+        "acc_norm": 0.8148148148148148,
+        "acc_norm_stderr": 0.013890862162876168
+      },
+      "hendrycksTest-moral_disputes": {
+        "acc": 0.7283236994219653,
+        "acc_stderr": 0.023948512905468365,
+        "acc_norm": 0.7283236994219653,
+        "acc_norm_stderr": 0.023948512905468365
+      },
+      "hendrycksTest-moral_scenarios": {
+        "acc": 0.3318435754189944,
+        "acc_stderr": 0.015748421208187306,
+        "acc_norm": 0.3318435754189944,
+        "acc_norm_stderr": 0.015748421208187306
+      },
+      "hendrycksTest-nutrition": {
+        "acc": 0.7418300653594772,
+        "acc_stderr": 0.025058503316958147,
+        "acc_norm": 0.7418300653594772,
+        "acc_norm_stderr": 0.025058503316958147
+      },
+      "hendrycksTest-philosophy": {
+        "acc": 0.6881028938906752,
+        "acc_stderr": 0.026311858071854155,
+        "acc_norm": 0.6881028938906752,
+        "acc_norm_stderr": 0.026311858071854155
+      },
+      "hendrycksTest-prehistory": {
+        "acc": 0.7438271604938271,
+        "acc_stderr": 0.0242885336377261,
+        "acc_norm": 0.7438271604938271,
+        "acc_norm_stderr": 0.0242885336377261
+      },
+      "hendrycksTest-professional_accounting": {
+        "acc": 0.49645390070921985,
+        "acc_stderr": 0.02982674915328092,
+        "acc_norm": 0.49645390070921985,
+        "acc_norm_stderr": 0.02982674915328092
+      },
+      "hendrycksTest-professional_law": {
+        "acc": 0.4726205997392438,
+        "acc_stderr": 0.012751075788015067,
+        "acc_norm": 0.4726205997392438,
+        "acc_norm_stderr": 0.012751075788015067
+      },
+      "hendrycksTest-professional_medicine": {
+        "acc": 0.6544117647058824,
+        "acc_stderr": 0.02888819310398863,
+        "acc_norm": 0.6544117647058824,
+        "acc_norm_stderr": 0.02888819310398863
+      },
+      "hendrycksTest-professional_psychology": {
+        "acc": 0.6486928104575164,
+        "acc_stderr": 0.019312676065786558,
+        "acc_norm": 0.6486928104575164,
+        "acc_norm_stderr": 0.019312676065786558
+      },
+      "hendrycksTest-public_relations": {
+        "acc": 0.6909090909090909,
+        "acc_stderr": 0.044262946482000985,
+        "acc_norm": 0.6909090909090909,
+        "acc_norm_stderr": 0.044262946482000985
+      },
+      "hendrycksTest-security_studies": {
+        "acc": 0.7183673469387755,
+        "acc_stderr": 0.02879518557429129,
+        "acc_norm": 0.7183673469387755,
+        "acc_norm_stderr": 0.02879518557429129
+      },
+      "hendrycksTest-sociology": {
+        "acc": 0.845771144278607,
+        "acc_stderr": 0.025538433368578337,
+        "acc_norm": 0.845771144278607,
+        "acc_norm_stderr": 0.025538433368578337
+      },
+      "hendrycksTest-us_foreign_policy": {
+        "acc": 0.85,
+        "acc_stderr": 0.03588702812826371,
+        "acc_norm": 0.85,
+        "acc_norm_stderr": 0.03588702812826371
+      },
+      "hendrycksTest-virology": {
+        "acc": 0.5240963855421686,
+        "acc_stderr": 0.03887971849597264,
+        "acc_norm": 0.5240963855421686,
+        "acc_norm_stderr": 0.03887971849597264
+      },
+      "hendrycksTest-world_religions": {
+        "acc": 0.7953216374269005,
+        "acc_stderr": 0.030944459778533214,
+        "acc_norm": 0.7953216374269005,
+        "acc_norm_stderr": 0.030944459778533214
+      }
+    },
+    "versions": {
+      "hendrycksTest-abstract_algebra": 1,
+      "hendrycksTest-anatomy": 1,
+      "hendrycksTest-astronomy": 1,
+      "hendrycksTest-business_ethics": 1,
+      "hendrycksTest-clinical_knowledge": 1,
+      "hendrycksTest-college_biology": 1,
+      "hendrycksTest-college_chemistry": 1,
+      "hendrycksTest-college_computer_science": 1,
+      "hendrycksTest-college_mathematics": 1,
+      "hendrycksTest-college_medicine": 1,
+      "hendrycksTest-college_physics": 1,
+      "hendrycksTest-computer_security": 1,
+      "hendrycksTest-conceptual_physics": 1,
+      "hendrycksTest-econometrics": 1,
+      "hendrycksTest-electrical_engineering": 1,
+      "hendrycksTest-elementary_mathematics": 1,
+      "hendrycksTest-formal_logic": 1,
+      "hendrycksTest-global_facts": 1,
+      "hendrycksTest-high_school_biology": 1,
+      "hendrycksTest-high_school_chemistry": 1,
+      "hendrycksTest-high_school_computer_science": 1,
+      "hendrycksTest-high_school_european_history": 1,
+      "hendrycksTest-high_school_geography": 1,
+      "hendrycksTest-high_school_government_and_politics": 1,
+      "hendrycksTest-high_school_macroeconomics": 1,
+      "hendrycksTest-high_school_mathematics": 1,
+      "hendrycksTest-high_school_microeconomics": 1,
+      "hendrycksTest-high_school_physics": 1,
+      "hendrycksTest-high_school_psychology": 1,
+      "hendrycksTest-high_school_statistics": 1,
+      "hendrycksTest-high_school_us_history": 1,
+      "hendrycksTest-high_school_world_history": 1,
+      "hendrycksTest-human_aging": 1,
+      "hendrycksTest-human_sexuality": 1,
+      "hendrycksTest-international_law": 1,
+      "hendrycksTest-jurisprudence": 1,
+      "hendrycksTest-logical_fallacies": 1,
+      "hendrycksTest-machine_learning": 1,
+      "hendrycksTest-management": 1,
+      "hendrycksTest-marketing": 1,
+      "hendrycksTest-medical_genetics": 1,
+      "hendrycksTest-miscellaneous": 1,
+      "hendrycksTest-moral_disputes": 1,
+      "hendrycksTest-moral_scenarios": 1,
+      "hendrycksTest-nutrition": 1,
+      "hendrycksTest-philosophy": 1,
+      "hendrycksTest-prehistory": 1,
+      "hendrycksTest-professional_accounting": 1,
+      "hendrycksTest-professional_law": 1,
+      "hendrycksTest-professional_medicine": 1,
+      "hendrycksTest-professional_psychology": 1,
+      "hendrycksTest-public_relations": 1,
+      "hendrycksTest-security_studies": 1,
+      "hendrycksTest-sociology": 1,
+      "hendrycksTest-us_foreign_policy": 1,
+      "hendrycksTest-virology": 1,
+      "hendrycksTest-world_religions": 1
+    },
+    "config": {
+      "model": "hf-causal-experimental",
+      "model_args": "pretrained=NousResearch/Yarn-Solar-10b-64k,use_accelerate=True,dtype=bfloat16,trust_remote_code=True,peft=",
+      "num_fewshot": 5,
+      "batch_size": "12",
+      "batch_sizes": [],
+      "device": null,
+      "no_cache": true,
+      "limit": null,
+      "bootstrap_iters": 100000,
+      "description_dict": {}
+    }
+  }
