@@ -4,7 +4,7 @@ This repo contains the code and data for the YaRN context window extension metho
 
 ## Preprint
 
-Preprint v2 (arXiv): [YaRN: Efficient Context Window Extension of Large Language Models](https://arxiv.org/abs/2309.00071)
+Preprint v2 (arXiv, *to appear in ICLR 2024*): [YaRN: Efficient Context Window Extension of Large Language Models](https://arxiv.org/abs/2309.00071)
 
 ## Models
 
@@ -31,6 +31,16 @@ With the release of v2 of our paper we are also publishing 64K and 128K variants
 | ---: | ------: | :----- |
 |   7B |     64K | [NousResearch/Yarn-Mistral-7b-64k](https://huggingface.co/NousResearch/Yarn-Mistral-7b-64k)     |
 |   7B |    128K | [NousResearch/Yarn-Mistral-7b-128k](https://huggingface.co/NousResearch/Yarn-Mistral-7b-128k)   |
+
+### SOLAR
+
+The [SOLAR 10.7B v1.0](https://huggingface.co/upstage/SOLAR-10.7B-v1.0) model utilizes [depth-up scaling](https://arxiv.org/abs/2312.15166) to add layers to [Mistral 7B v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1), which may potentially improve long context performance on a per-parameter basis.
+We publish 32K and 64K variants.
+
+|    Size | Context | Link   |
+| ------: | ------: | :----- |
+|   10.7B |     32K | [NousResearch/Yarn-Solar-10b-32k](https://huggingface.co/NousResearch/Yarn-Solar-10b-32k)   |
+|   10.7B |     64K | [NousResearch/Yarn-Solar-10b-64k](https://huggingface.co/NousResearch/Yarn-Solar-10b-64k)   |
 
 ## Reproduction
 
