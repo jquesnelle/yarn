@@ -4,7 +4,8 @@ This repo contains the code and data for the YaRN context window extension metho
 
 ## Preprint
 
-Preprint v2 (arXiv, *to appear in ICLR 2024*): [YaRN: Efficient Context Window Extension of Large Language Models](https://arxiv.org/abs/2309.00071)
+Paper (ICLR 2024): [YaRN: Efficient Context Window Extension of Large Language Models](https://openreview.net/forum?id=wHBfxhZu1u)  
+Old Preprint [(arXiv)](https://arxiv.org/abs/2309.00071)
 
 ## Models
 
@@ -76,12 +77,12 @@ To reproduce the evaluations, install [lm-evaluation-harness](https://github.com
 ### Citation
 
 ```
-@misc{peng2023yarn,
-      title={YaRN: Efficient Context Window Extension of Large Language Models}, 
+@inproceedings{
+      peng2024yarn,
+      title={Ya{RN}: Efficient Context Window Extension of Large Language Models},
       author={Bowen Peng and Jeffrey Quesnelle and Honglu Fan and Enrico Shippole},
-      year={2023},
-      eprint={2309.00071},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
+      booktitle={The Twelfth International Conference on Learning Representations},
+      year={2024},
+      url={https://openreview.net/forum?id=wHBfxhZu1u}
 }
 ```
