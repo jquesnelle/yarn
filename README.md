@@ -2,7 +2,7 @@
 
 This repo contains the code and data for the YaRN context window extension method.
 
-## Preprint
+## Paper
 
 Paper (ICLR 2024): [YaRN: Efficient Context Window Extension of Large Language Models](https://openreview.net/forum?id=wHBfxhZu1u)  
 Old Preprint [(arXiv)](https://arxiv.org/abs/2309.00071)
